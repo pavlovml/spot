@@ -1,3 +1,11 @@
+# spot
+
+An object detection toolchain for Python (Faster RCNN).
+
+*Currently in training...*
+
+---
+
 ### Disclaimer
 
 The official Faster R-CNN code (written in MATLAB) is available [here](https://github.com/ShaoqingRen/faster_rcnn).
