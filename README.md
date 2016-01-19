@@ -1,8 +1,6 @@
 # spot
 
-An object detection toolchain for Python (Faster RCNN).
-
-*Currently in training...*
+An object detection toolchain for Caffe (Faster RCNN). *Currently in training...*
 
 ---
 
