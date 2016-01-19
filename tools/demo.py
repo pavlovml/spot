@@ -118,7 +118,7 @@ if __name__ == '__main__':
     args = parse_args()
 
     prototxt = os.path.join(cfg.ROOT_DIR, 'models', NETS[args.demo_net][0],
-                            'faster_rcnn_alt_opt', 'faster_rcnn_test.pt')
+                            'test.prototxt')
     caffemodel = os.path.join(cfg.ROOT_DIR, 'data', 'faster_rcnn_models',
                               NETS[args.demo_net][1])
 
@@ -143,6 +143,7 @@ if __name__ == '__main__':
 
     im_names = ['000456.jpg', '000542.jpg', '001150.jpg',
                 '001763.jpg', '004545.jpg']
+
     for im_name in im_names:
         print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
         print 'Demo for data/demo/{}'.format(im_name)
