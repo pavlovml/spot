@@ -1,7 +1,7 @@
 # ==============================================================================
 # config
 
-.PHONY: default build build-lib build-caffe
+.PHONY: default build build-lib build-caffe download-models
 
 default: install
 	
@@ -16,7 +16,7 @@ build-lib:
 
 build-caffe:
 	git clone https://github.com/pavlovml/gibraltar.git
-	cd gibraltar && make
+	cd gibraltar && $(MAKE)
 
 download-models: data/faster_rcnn_models data/imagenet_models
 
