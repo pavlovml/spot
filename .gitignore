@@ -1,3 +1,6 @@
 *.pyc
 .ipynb_checkpoints
 lib/build
+gibraltar
+data
+!data/demo
