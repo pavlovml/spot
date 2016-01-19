@@ -4,6 +4,11 @@
 .PHONY: default build build-lib build-caffe download-models
 
 default: install
+
+MODEL ?= ZF
+
+WEIGHTS ?= data/imagenet_models/$(MODEL).v2.caffemodel
+SOLVER ?= models/$(MODEL)/solver.prototxt
 	
 # ==============================================================================
 # phony targets
@@ -19,6 +24,15 @@ build-caffe:
 	cd gibraltar && $(MAKE)
 
 download-models: data/faster_rcnn_models data/imagenet_models
+
+train:
+	time ./tools/train_net.py \
+		--gpu 0 \
+		--solver $(SOLVER) \
+		--weights $(WEIGHTS) \
+		--imdb $(DATSET) \
+		--iters $(ITERATIONS) \
+		--cfg config/default.yml
 
 # ==============================================================================
 # file targets
