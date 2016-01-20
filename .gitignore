@@ -1,6 +1,4 @@
+*.caffemodel
 *.pyc
-.ipynb_checkpoints
-lib/build
 gibraltar
-data
-!data/demo
+models/imagenet_models.tgz
