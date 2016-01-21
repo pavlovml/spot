@@ -5,12 +5,10 @@
 
 default: install
 
-MODEL ?= ZF
-
-WEIGHTS ?= data/imagenet_models/$(MODEL).v2.caffemodel
-SOLVER ?= models/$(MODEL)/solver.prototxt
-ITERATIONS ?= 40000
 DATASET ?= data/omf
+GPU ?= 0
+ITERATIONS ?= 40000
+MODEL ?= ZF
 	
 # ==============================================================================
 # phony targets
@@ -33,13 +31,12 @@ download-weights: models/imagenet_models.tgz
 	rmdir models/imagenet_models
 
 train:
-	time ./tools/train_net.py \
-		--gpu 0 \
-		--solver $(SOLVER) \
-		--weights $(WEIGHTS) \
-		--imdb $(DATASET) \
-		--iters $(ITERATIONS) \
-		--cfg config/default.yml
+	time ./bin/spot-train \
+		--gpu $(GPU) \
+		--model $(MODEL) \
+		--iterations $(ITERATIONS) \
+		--config config/default.yml \
+		$(DATASET)
 
 # ==============================================================================
 # file targets

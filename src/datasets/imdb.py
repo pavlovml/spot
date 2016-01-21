@@ -13,7 +13,7 @@ import numpy as np
 import scipy.sparse
 import datasets
 
-class imdb(object):
+class IMDB(object):
     """Image database."""
 
     def __init__(self, name):

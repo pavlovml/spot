@@ -5,26 +5,23 @@
 # Written by Ross Girshick
 # --------------------------------------------------------
 
-import datasets
-import datasets.pascal_voc
-import os
-import datasets.imdb
-import xml.dom.minidom as minidom
-import numpy as np
-import scipy.sparse
-import scipy.io as sio
-import utils.cython_bbox
 import cPickle
+import datasets
+import datasets.imdb
+from .imdb import IMDB
+import numpy as np
+import os
+import scipy.io as sio
+import scipy.sparse
 import subprocess
+import utils.cython_bbox
+import xml.dom.minidom as minidom
 
-class pascal_voc(datasets.imdb):
-    def __init__(self, image_set, year, devkit_path=None):
-        datasets.imdb.__init__(self, 'voc_' + year + '_' + image_set)
+class OMF(IMDB):
+    def __init__(self, path):
+        IMDB.__init__(self, 'voc_' + year + '_' + image_set)
         self._year = year
-        self._image_set = image_set
-        self._devkit_path = self._get_default_path() if devkit_path is None \
-                            else devkit_path
-        self._data_path = os.path.join(self._devkit_path, 'VOC' + self._year)
+        self._data_path = path
         self._classes = ('__background__', # always index 0
                          'aeroplane', 'bicycle', 'bird', 'boat',
                          'bottle', 'bus', 'car', 'cat', 'chair',
@@ -269,6 +266,6 @@ class pascal_voc(datasets.imdb):
             self.config['cleanup'] = True
 
 if __name__ == '__main__':
-    d = datasets.pascal_voc('trainval', '2007')
+    d = datasets.omf('trainval', '2007')
     res = d.roidb
     from IPython import embed; embed()

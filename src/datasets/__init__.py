@@ -5,9 +5,7 @@
 # Written by Ross Girshick
 # --------------------------------------------------------
 
-from .imdb import imdb
-from .pascal_voc import pascal_voc
-from . import factory
-
 import os.path as osp
+from .imdb import IMDB
+from .omf import OMF
 ROOT_DIR = osp.join(osp.dirname(__file__), '..', '..')
