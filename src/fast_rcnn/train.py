@@ -122,6 +122,7 @@ def get_training_roidb(imdb):
         print 'done'
 
     print 'Preparing training data...'
+    print imdb
     rdl_roidb.prepare_roidb(imdb)
     print 'done'
 
