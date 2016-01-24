@@ -1,0 +1,103 @@
+#! /usr/bin/env python
+
+# --------------------------------------------------------
+# Fast R-CNN
+# Copyright (c) 2015 Microsoft
+# Licensed under The MIT License [see LICENSE for details]
+# Written by Ross Girshick
+# --------------------------------------------------------
+
+"""Train a Fast R-CNN network on a region of interest database."""
+
+import _init_paths
+
+from fast_rcnn.train import get_training_roidb, train_net
+from fast_rcnn.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
+from datasets import OMF
+from argparse import ArgumentParser
+
+import caffe
+import pprint
+import numpy as np
+import sys
+
+def parse_args():
+    """
+    Parse input arguments
+    """
+    parser = ArgumentParser(description='Train a Fast R-CNN network')
+    parser.add_argument('-g', '--gpu', dest='gpu',
+                        help='GPU device id to use',
+                        default=0, type=int)
+
+    parser.add_argument('-i', '--iterations', dest='iterations',
+                        help='number of iterations to train',
+                        default=40000, type=int)
+
+    parser.add_argument('-c', '--config', dest='config_file',
+                        help='optional config file',
+                        default=None, type=str)
+
+    parser.add_argument('--seed', dest='seed',
+                        help='fixed RNG seed',
+                        default=None, type=int)
+
+    parser.add_argument('-m', '--model', dest='model',
+                        help='pretrained model',
+                        default='ZF', type=str)
+
+    parser.add_argument('dataset', metavar="DATASET",
+                        help='path to training dataset',
+                        type=str)
+
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(1)
+
+    args = parser.parse_args()
+
+    if args.config_file is not None:
+        cfg_from_file(args.config_file)
+
+    cfg.GPU_ID = args.gpu
+
+    print('Called with args:')
+    print(args)
+
+    print('Using config:')
+    pprint.pprint(cfg)
+
+    return args
+
+def setup_caffe(gpu=0, seed=None):
+    """Initializes Caffe's python bindings."""
+    if seed:
+        np.random.seed(seed)
+        caffe.set_random_seed(seed)
+
+    caffe.set_mode_gpu()
+    caffe.set_device(gpu)
+
+if __name__ == '__main__':
+    args = parse_args()
+
+    setup_caffe(gpu=args.gpu, seed=args.seed)
+
+    dataset = OMF(args.dataset)
+    print 'Loaded dataset `{:s}` for training'.format(dataset.name)
+
+    dataset.set_proposal_method(cfg.TRAIN.PROPOSAL_METHOD)
+    print 'Set proposal method: {:s}'.format(cfg.TRAIN.PROPOSAL_METHOD)
+
+    roidb = get_training_roidb(dataset)
+    print 'Loaded {:d} training examples'.format(len(roidb))
+
+    output_dir = get_output_dir(dataset, None)
+    print 'Output will be saved to `{:s}`'.format(output_dir)
+
+    solver = 'models/{:s}/solver.prototxt'.format(args.model)
+    weights = 'models/{:s}/weights.caffemodel'.format(args.model)
+
+    train_net(solver, roidb, output_dir,
+              pretrained_model=weights,
+              max_iters=args.iterations)
