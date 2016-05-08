@@ -75,7 +75,7 @@ class OMF(IMDB):
         try:
             filename = self.annotation_files[name]
             with open(filename) as f:
-                data = json.load(f)
+                data = json.load(f)[0] # HACK
             return data
         except KeyError:
             raise OMFError("Could not find annotation '" + name + "'")

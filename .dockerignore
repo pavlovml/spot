@@ -1,6 +1,6 @@
 *.caffemodel
 *.pyc
 *.so
-models/imagenet_models.tgz
+models
 data
 !bin

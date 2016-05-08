@@ -1,27 +1,20 @@
 # ==============================================================================
 # config
 
-.PHONY: default build build-lib build-caffe download-weights
+.PHONY: default build download-weights
 
 default: install
 
 DATASET ?= data/omf
 GPU ?= 0
 ITERATIONS ?= 40000
-MODEL ?= ZF
+MODEL ?= VGG16
 	
 # ==============================================================================
 # phony targets
 
-build: build-lib build-caffe
-
-build-lib:
-	cd lib && python setup.py build_ext --inplace
-	rm -rf lib/build
-
-build-caffe:
-	git clone https://github.com/pavlovml/gibraltar.git
-	cd gibraltar && $(MAKE)
+build:
+	docker build -t pavlov/spot .
 
 download-weights: models/imagenet_models.tgz
 	cd models && tar zxfv imagenet_models.tgz

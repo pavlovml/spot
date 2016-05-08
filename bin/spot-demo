@@ -25,17 +25,12 @@ import scipy.io as sio
 import caffe, os, sys, cv2
 import argparse
 
-CLASSES = ('__background__',
-           'aeroplane', 'bicycle', 'bird', 'boat',
-           'bottle', 'bus', 'car', 'cat', 'chair',
-           'cow', 'diningtable', 'dog', 'horse',
-           'motorbike', 'person', 'pottedplant',
-           'sheep', 'sofa', 'train', 'tvmonitor')
+CLASSES = ('__background__', 'patagonia1')
 
 NETS = {'vgg16': ('VGG16',
                   'VGG16_faster_rcnn_final.caffemodel'),
         'zf': ('ZF',
-                  'ZF_faster_rcnn_final.caffemodel')}
+                  'data/omf/zf_iter_40000.caffemodel')}
 
 
 def vis_detections(im, class_name, dets, thresh=0.5):
@@ -96,6 +91,7 @@ def demo(net, image_name):
                           cls_scores[:, np.newaxis])).astype(np.float32)
         keep = nms(dets, NMS_THRESH)
         dets = dets[keep, :]
+        print keep
         vis_detections(im, cls, dets, thresh=CONF_THRESH)
 
 def parse_args():
@@ -120,7 +116,7 @@ if __name__ == '__main__':
 
     prototxt = os.path.join(cfg.ROOT_DIR, 'models', NETS[args.demo_net][0],
                             'test.prototxt')
-    caffemodel = os.path.join(cfg.ROOT_DIR, 'data', 'faster_rcnn_models',
+    caffemodel = os.path.join(cfg.ROOT_DIR, 'output', 'default',
                               NETS[args.demo_net][1])
 
     if not os.path.isfile(caffemodel):
