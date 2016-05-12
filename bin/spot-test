@@ -7,11 +7,10 @@
 # Written by Ross Girshick
 # --------------------------------------------------------
 
-"""Train a Fast R-CNN network on a region of interest database."""
+"""Test a Fast R-CNN network on an image database."""
 
-from spot.fast_rcnn.train import FasterRCNNSolver
+from spot.fast_rcnn.test import test_net
 from spot.fast_rcnn.config import cfg
-from spot.utils.mkdirp import mkdirp
 from spot.datasets import IMDB
 from argparse import ArgumentParser
 
@@ -37,24 +36,24 @@ def parse_args():
                         help='fixed RNG seed',
                         default=None, type=int)
 
-    parser.add_argument('-f', '--flipped', dest='flipped',
-                        help='include flipped images in training dataset',
-                        action='store_true')
-
-    parser.add_argument('-o', '--output', dest='output',
-                        help='directory to save snapshots to',
-                        default='output', type=str)
-
-    parser.add_argument('--snapshot-iterations', dest='snapshot_iterations',
-                        help='number of iterations between snapshots',
+    parser.add_argument('--max-detections', dest='max_detections',
+                        help='max number of detections per image',
                         default=10000, type=int)
 
+    parser.add_argument('-v', '--visualize', dest='visualize',
+                        help='visualize detections',
+                        action='store_true')
+
     parser.add_argument('model', metavar='model',
-                        help='model directory with solver/test/train settings and weights',
+                        help='model directory with test settings',
+                        type=str)
+
+    parser.add_argument('weights', metavar='weights',
+                        help='weights for the model',
                         type=str)
 
     parser.add_argument('dataset', metavar='DATASET',
-                        help='path to training dataset',
+                        help='path to testing dataset',
                         type=str)
 
     if len(sys.argv) == 1:
@@ -85,31 +84,11 @@ if __name__ == '__main__':
     setup_caffe(gpu=args.gpu, seed=args.seed)
 
     dataset = IMDB(args.dataset)
-    print 'Loaded dataset `{:s}` for training'.format(dataset.name)
+    print 'Loaded dataset `{:s}` for testing ({:d} examples)'.format(dataset.name, len(dataset))
 
-    if args.flipped:
-        print 'Appending horizontally-flipped training examples...'
-        dataset.append_flipped_images()
+    test_file = '{:s}/test.prototxt'.format(args.model)
+    net = caffe.Net(test_file, args.weights, caffe.TEST)
+    test_net(net, dataset, max_per_image=args.max_detections, vis=args.visualize)
 
-    print 'Preparing training data...'
-    rdl_roidb.prepare_roidb(dataset)
-    print 'Loaded {:d} training examples'.format(len(dataset))
-
-    mkdirp(args.output)
-    print 'Output will be saved to `{:s}`'.format(args.output)
-
-    solver_file = '{:s}/solver.prototxt'.format(args.model)
-    weights_file = '{:s}/weights.caffemodel'.format(args.model)
-
-    solver = FasterRCNNSolver(
-            solver_file=solver_file,
-            weights_file=weights_file,
-            dataset=dataset,
-            output_dir=args.output,
-            snapshot_iterations=args.snapshot_iterations)
-
-    print 'Solving...'
-    model_paths = solver.train_model(args.iterations)
-
-    print 'done solving'
+    print 'done testing'
     sys.exit(0)

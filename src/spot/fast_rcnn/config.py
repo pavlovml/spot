@@ -57,34 +57,14 @@ __C.TRAIN.FG_THRESH = 0.5
 __C.TRAIN.BG_THRESH_HI = 0.5
 __C.TRAIN.BG_THRESH_LO = 0.0
 
-# Use horizontally-flipped images during training?
-__C.TRAIN.USE_FLIPPED = True
-
-# Train bounding-box regressors
-__C.TRAIN.BBOX_REG = True
-
 # Overlap required between a ROI and ground-truth box in order for that ROI to
 # be used as a bounding-box regression training example
 __C.TRAIN.BBOX_THRESH = 0.5
 
-# Iterations between snapshots
-__C.TRAIN.SNAPSHOT_ITERS = 10000
-
-# solver.prototxt specifies the snapshot path prefix, this adds an optional
-# infix to yield the path: <prefix>[_<infix>]_iters_XYZ.caffemodel
-__C.TRAIN.SNAPSHOT_INFIX = ''
-
-# Use a prefetch thread in roi_data_layer.layer
-# So far I haven't found this useful; likely more engineering work is required
-__C.TRAIN.USE_PREFETCH = False
-
 # Normalize the targets (subtract empirical mean, divide by empirical stddev)
-__C.TRAIN.BBOX_NORMALIZE_TARGETS = True
+# Normalize the targets using "precomputed" (or made up) means and stdevs
 # Deprecated (inside weights)
 __C.TRAIN.BBOX_INSIDE_WEIGHTS = (1.0, 1.0, 1.0, 1.0)
-# Normalize the targets using "precomputed" (or made up) means and stdevs
-# (BBOX_NORMALIZE_TARGETS must also be True)
-__C.TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED = True
 __C.TRAIN.BBOX_NORMALIZE_MEANS = (0.0, 0.0, 0.0, 0.0)
 __C.TRAIN.BBOX_NORMALIZE_STDS = (0.1, 0.1, 0.2, 0.2)
 
@@ -93,8 +73,6 @@ __C.TRAIN.BBOX_NORMALIZE_STDS = (0.1, 0.1, 0.2, 0.2)
 # on zero-padding.
 __C.TRAIN.ASPECT_GROUPING = True
 
-# Use RPN to detect objects
-__C.TRAIN.HAS_RPN = True
 # IOU >= thresh: positive example
 __C.TRAIN.RPN_POSITIVE_OVERLAP = 0.7
 # IOU < thresh: negative example
@@ -142,12 +120,6 @@ __C.TEST.NMS = 0.3
 # predictors (trained, eg, with one-vs-rest SVMs).
 __C.TEST.SVM = False
 
-# Test using bounding-box regressors
-__C.TEST.BBOX_REG = True
-
-# Propose boxes
-__C.TEST.HAS_RPN = True
-
 ## NMS threshold used on RPN proposals
 __C.TEST.RPN_NMS_THRESH = 0.7
 ## Number of top scoring boxes to keep before apply NMS to RPN proposals
@@ -177,9 +149,6 @@ __C.PIXEL_MEANS = np.array([[[102.9801, 115.9465, 122.7717]]])
 # For reproducibility
 __C.RNG_SEED = 3
 
-# A small number that's used many times
-__C.EPS = 1e-14
-
 # Root directory of project
 __C.ROOT_DIR = osp.abspath(osp.join(osp.dirname(__file__), '..', '..'))
 
@@ -191,17 +160,3 @@ __C.USE_GPU_NMS = True
 
 # Default GPU device id
 __C.GPU_ID = 0
-
-def get_output_dir(imdb, net=None):
-    """Return the directory where experimental artifacts are placed.
-    If the directory does not exist, it is created.
-
-    A canonical path is built using the name from an imdb and a network
-    (if not None).
-    """
-    outdir = osp.abspath(osp.join(__C.ROOT_DIR, 'output', imdb.name))
-    if net is not None:
-        outdir = osp.join(outdir, net.name)
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
-    return outdir

@@ -137,10 +137,8 @@ def _compute_targets(ex_rois, gt_rois, labels):
     assert gt_rois.shape[1] == 4
 
     targets = bbox_transform(ex_rois, gt_rois)
-    if cfg.TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
-        # Optionally normalize targets by a precomputed mean and stdev
-        targets = ((targets - np.array(cfg.TRAIN.BBOX_NORMALIZE_MEANS))
-                / np.array(cfg.TRAIN.BBOX_NORMALIZE_STDS))
+    targets = ((targets - np.array(cfg.TRAIN.BBOX_NORMALIZE_MEANS))
+            / np.array(cfg.TRAIN.BBOX_NORMALIZE_STDS))
     return np.hstack(
             (labels[:, np.newaxis], targets)).astype(np.float32, copy=False)
 

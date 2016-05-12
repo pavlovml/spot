@@ -1,10 +1,7 @@
 *.pyc
 *.so
-.git
 .ipynb_checkpoints
-data/test
 lib/build
-lib/pycocotools/_mask.c
-lib/pycocotools/_mask.so
-models/*.tgz
-models/*/weights.caffemodel
+data/test
+models
+.git

@@ -57,30 +57,11 @@ def add_bbox_regression_targets(roidb):
         roidb[im_i]['bbox_targets'] = \
                 _compute_targets(rois, max_overlaps, max_classes)
 
-    if cfg.TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
-        # Use fixed / precomputed "means" and "stds" instead of empirical values
-        means = np.tile(
-                np.array(cfg.TRAIN.BBOX_NORMALIZE_MEANS), (num_classes, 1))
-        stds = np.tile(
-                np.array(cfg.TRAIN.BBOX_NORMALIZE_STDS), (num_classes, 1))
-    else:
-        # Compute values needed for means and stds
-        # var(x) = E(x^2) - E(x)^2
-        class_counts = np.zeros((num_classes, 1)) + cfg.EPS
-        sums = np.zeros((num_classes, 4))
-        squared_sums = np.zeros((num_classes, 4))
-        for im_i in xrange(num_images):
-            targets = roidb[im_i]['bbox_targets']
-            for cls in xrange(1, num_classes):
-                cls_inds = np.where(targets[:, 0] == cls)[0]
-                if cls_inds.size > 0:
-                    class_counts[cls] += cls_inds.size
-                    sums[cls, :] += targets[cls_inds, 1:].sum(axis=0)
-                    squared_sums[cls, :] += \
-                            (targets[cls_inds, 1:] ** 2).sum(axis=0)
-
-        means = sums / class_counts
-        stds = np.sqrt(squared_sums / class_counts - means ** 2)
+    # Use fixed / precomputed "means" and "stds" instead of empirical values
+    means = np.tile(
+            np.array(cfg.TRAIN.BBOX_NORMALIZE_MEANS), (num_classes, 1))
+    stds = np.tile(
+            np.array(cfg.TRAIN.BBOX_NORMALIZE_STDS), (num_classes, 1))
 
     print 'bbox target means:'
     print means
@@ -89,17 +70,13 @@ def add_bbox_regression_targets(roidb):
     print stds
     print stds[1:, :].mean(axis=0) # ignore bg class
 
-    # Normalize targets
-    if cfg.TRAIN.BBOX_NORMALIZE_TARGETS:
-        print "Normalizing targets"
-        for im_i in xrange(num_images):
-            targets = roidb[im_i]['bbox_targets']
-            for cls in xrange(1, num_classes):
-                cls_inds = np.where(targets[:, 0] == cls)[0]
-                roidb[im_i]['bbox_targets'][cls_inds, 1:] -= means[cls, :]
-                roidb[im_i]['bbox_targets'][cls_inds, 1:] /= stds[cls, :]
-    else:
-        print "NOT normalizing targets"
+    print "Normalizing targets"
+    for im_i in xrange(num_images):
+        targets = roidb[im_i]['bbox_targets']
+        for cls in xrange(1, num_classes):
+            cls_inds = np.where(targets[:, 0] == cls)[0]
+            roidb[im_i]['bbox_targets'][cls_inds, 1:] -= means[cls, :]
+            roidb[im_i]['bbox_targets'][cls_inds, 1:] /= stds[cls, :]
 
     # These values will be needed for making predictions
     # (the predicts will need to be unnormalized and uncentered)

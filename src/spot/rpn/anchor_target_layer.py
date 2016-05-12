@@ -38,7 +38,7 @@ class AnchorTargetLayer(caffe.Layer):
                 self._anchors[:, 2::4] - self._anchors[:, 0::4],
                 self._anchors[:, 3::4] - self._anchors[:, 1::4],
             ))
-            self._counts = cfg.EPS
+            self._counts = 1e-14
             self._sums = np.zeros((1, 4))
             self._squared_sums = np.zeros((1, 4))
             self._fg_sum = 0

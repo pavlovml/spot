@@ -5,41 +5,73 @@
 # Written by Ross Girshick
 # --------------------------------------------------------
 
+from spot.fast_rcnn.config import cfg
+from spot.utils.cython_bbox import bbox_overlaps
+import PIL
+import fnmatch
+import json
+import numpy as np
 import os
 import os.path as osp
-import PIL
-from spot.utils.cython_bbox import bbox_overlaps
-import numpy as np
 import scipy.sparse
-from spot.fast_rcnn.config import cfg
+
+def glob_keyed_files(path, ext):
+    res = {}
+    for root, dirnames, filenames in os.walk(path):
+        for filename in fnmatch.filter(filenames, '*.' + ext):
+            key = os.path.splitext(os.path.basename(filename))[0]
+            res[key] = os.path.join(root, filename)
+    return res
+
+class LabelSet:
+    def __init__(self, labels):
+        self.labels = labels
+        self.indices = dict(zip(labels, xrange(len(labels))))
+
+    def __len__(self):
+        return len(self.labels)
+
+    def index(self, label):
+        return self.indices[label]
+
+    def label(self, index):
+        return self.labels[index]
+
+class OMFError(Exception):
+    def __init__(self, message, cause=None):
+        super(OMFError, self).__init__(message + (u', caused by ' + repr(cause) if cause else ''))
+        self.cause = cause
 
 class IMDB(object):
     """Image database."""
 
-    def __init__(self, name):
-        self._name = name
-        self._num_classes = 0
-        self._classes = []
-        self._image_index = []
+    def __init__(self, path, ann_ext='json', image_ext='jpg'):
+        self.path = path
         self._roidb = None
-        # Use this dict for storing dataset specific config options
-        self.config = {}
+        self.annotation_files = glob_keyed_files(path, ann_ext)
+        self.image_files = glob_keyed_files(path, image_ext)
+        self.examples = list(self.image_files.keys())
+        labels = self.load_label_set_annotation()
+        self.label_set = LabelSet(labels)
+
+    def __len__(self):
+        return len(self.examples)
 
     @property
     def name(self):
-        return self._name
+        return self.path
 
     @property
     def num_classes(self):
-        return len(self._classes)
+        return len(self.label_set)
 
     @property
     def classes(self):
-        return self._classes
+        return self.label_set
 
     @property
     def image_index(self):
-        return self._image_index
+        return self.examples
 
     @property
     def roidb(self):
@@ -50,15 +82,52 @@ class IMDB(object):
         #   flipped
         if self._roidb is not None:
             return self._roidb
-        self._roidb = self.gt_roidb()
+        self._roidb = [self.load_image_annotation(i) for i in self.examples]
         return self._roidb
+
+    def load_annotation(self, name):
+        try:
+            filename = self.annotation_files[name]
+            with open(filename) as f:
+                data = json.load(f)
+            return data
+        except KeyError:
+            raise OMFError("Could not find annotation '" + name + "'")
+        except ValueError:
+            raise OMFError("Could not decode JSON annotation '" + name + "'")
+
+    def load_label_set_annotation(self, name='labels'):
+        data = self.load_annotation(name)
+        return data['labels']
+
+    def load_image_annotation(self, name):
+        data = self.load_annotation(name)[0]
+        label_index = self.label_set.index(data['label'])
+
+        boxes = np.zeros((1, 4), dtype=np.uint16)
+        boxes[0, :] = data['bounds']
+
+        gt_classes = np.zeros((1), dtype=np.int32)
+        gt_classes[0] = label_index
+
+        overlaps = np.zeros((1, len(self.label_set)), dtype=np.float32)
+        overlaps[0, label_index] = 1.0
+        overlaps = scipy.sparse.csr_matrix(overlaps)
+
+        print boxes, gt_classes
+        return { 'boxes': boxes,
+                 'gt_classes': gt_classes,
+                 'gt_overlaps': overlaps,
+                 'flipped': False }
 
     @property
     def num_images(self):
-      return len(self.image_index)
+        return len(self.examples)
 
     def image_path_at(self, i):
-        raise NotImplementedError
+        """Return the absolute path to image i in the image sequence."""
+        name = self.examples[i]
+        return self.image_files[name]
 
     def evaluate_detections(self, all_boxes, output_dir=None):
         """
@@ -71,26 +140,23 @@ class IMDB(object):
         """
         raise NotImplementedError
 
-    def _get_widths(self):
-      return [PIL.Image.open(self.image_path_at(i)).size[0]
-              for i in xrange(self.num_images)]
-
     def append_flipped_images(self):
         num_images = self.num_images
-        widths = self._get_widths()
+        widths = [PIL.Image.open(self.image_path_at(i)).size[0]
+                  for i in xrange(self.num_images)]
         for i in xrange(num_images):
             boxes = self.roidb[i]['boxes'].copy()
             oldx1 = boxes[:, 0].copy()
             oldx2 = boxes[:, 2].copy()
-            boxes[:, 0] = widths[i] - oldx2 - 1
-            boxes[:, 2] = widths[i] - oldx1 - 1
+            boxes[:, 0] = widths[i] - oldx2 # - 1
+            boxes[:, 2] = widths[i] - oldx1 # - 1
             assert (boxes[:, 2] >= boxes[:, 0]).all()
             entry = {'boxes' : boxes,
                      'gt_overlaps' : self.roidb[i]['gt_overlaps'],
                      'gt_classes' : self.roidb[i]['gt_classes'],
                      'flipped' : True}
             self.roidb.append(entry)
-        self._image_index = self._image_index * 2
+        self.examples = self.examples * 2
 
     def evaluate_recall(self, candidate_boxes=None, thresholds=None,
                         area='all', limit=None):
@@ -181,49 +247,3 @@ class IMDB(object):
         ar = recalls.mean()
         return {'ar': ar, 'recalls': recalls, 'thresholds': thresholds,
                 'gt_overlaps': gt_overlaps}
-
-    def create_roidb_from_box_list(self, box_list, gt_roidb):
-        assert len(box_list) == self.num_images, \
-                'Number of boxes must match number of ground-truth images'
-        roidb = []
-        for i in xrange(self.num_images):
-            boxes = box_list[i]
-            num_boxes = boxes.shape[0]
-            overlaps = np.zeros((num_boxes, self.num_classes), dtype=np.float32)
-
-            if gt_roidb is not None and gt_roidb[i]['boxes'].size > 0:
-                gt_boxes = gt_roidb[i]['boxes']
-                gt_classes = gt_roidb[i]['gt_classes']
-                gt_overlaps = bbox_overlaps(boxes.astype(np.float),
-                                            gt_boxes.astype(np.float))
-                argmaxes = gt_overlaps.argmax(axis=1)
-                maxes = gt_overlaps.max(axis=1)
-                I = np.where(maxes > 0)[0]
-                overlaps[I, gt_classes[argmaxes[I]]] = maxes[I]
-
-            overlaps = scipy.sparse.csr_matrix(overlaps)
-            roidb.append({
-                'boxes' : boxes,
-                'gt_classes' : np.zeros((num_boxes,), dtype=np.int32),
-                'gt_overlaps' : overlaps,
-                'flipped' : False,
-                'seg_areas' : np.zeros((num_boxes,), dtype=np.float32),
-            })
-        return roidb
-
-    @staticmethod
-    def merge_roidbs(a, b):
-        assert len(a) == len(b)
-        for i in xrange(len(a)):
-            a[i]['boxes'] = np.vstack((a[i]['boxes'], b[i]['boxes']))
-            a[i]['gt_classes'] = np.hstack((a[i]['gt_classes'],
-                                            b[i]['gt_classes']))
-            a[i]['gt_overlaps'] = scipy.sparse.vstack([a[i]['gt_overlaps'],
-                                                       b[i]['gt_overlaps']])
-            a[i]['seg_areas'] = np.hstack((a[i]['seg_areas'],
-                                           b[i]['seg_areas']))
-        return a
-
-    def competition_mode(self, on):
-        """Turn competition mode on or off."""
-        pass

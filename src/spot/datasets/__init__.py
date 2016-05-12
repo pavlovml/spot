@@ -4,5 +4,5 @@
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Ross Girshick
 # --------------------------------------------------------
+
 from .imdb import IMDB
-from .omf import OMF
