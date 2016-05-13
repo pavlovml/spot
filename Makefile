@@ -9,9 +9,6 @@ DATASET ?= data/omf
 GPU ?= 0
 ITERATIONS ?= 40000
 MODEL ?= ZF
-NVIDIA_DRIVER ?= 361.42
-OUTPUT_DIR ?= /home/ubuntu/output
-MODELS_DIR ?= /home/ubuntu/models
 
 # ==============================================================================
 # phony targets
@@ -21,7 +18,8 @@ build:
 
 run: build
 	docker run \
-		-v nvidia_driver_$(NVIDIA_DRIVER):/usr/local/nvidia \
+		-v nvidia_driver_361.42:/usr/local/nvidia \
+		-v /home/ubuntu/data:/spot/data \
 		-v /home/ubuntu/output:/spot/output \
 		-v /home/ubuntu/models:/spot/models \
 		--device /dev/nvidiactl:/dev/nvidiactl \

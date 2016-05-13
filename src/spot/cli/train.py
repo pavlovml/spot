@@ -12,7 +12,7 @@
 from spot.fast_rcnn.train import FasterRCNNSolver
 from spot.fast_rcnn.config import cfg
 from spot.utils.mkdirp import mkdirp
-from spot.datasets import IMDB
+from spot.dataset import FasterRCNNDataset
 from argparse import ArgumentParser
 
 import caffe
@@ -79,12 +79,12 @@ def setup_caffe(gpu=0, seed=None):
     caffe.set_mode_gpu()
     caffe.set_device(gpu)
 
-if __name__ == '__main__':
+def run():
     args = parse_args()
 
     setup_caffe(gpu=args.gpu, seed=args.seed)
 
-    dataset = IMDB(args.dataset)
+    dataset = FasterRCNNDataset(args.dataset)
     print 'Loaded dataset `{:s}` for training'.format(dataset.name)
 
     if args.flipped:

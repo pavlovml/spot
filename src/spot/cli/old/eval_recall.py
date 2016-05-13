@@ -40,14 +40,9 @@ if __name__ == '__main__':
         imdb.config['rpn_file'] = args.rpn_file
 
     candidate_boxes = None
-    if 0:
-        import scipy.io as sio
-        filename = 'debug/stage1_rpn_voc_2007_test.mat'
-        raw_data = sio.loadmat(filename)['aboxes'].ravel()
-        candidate_boxes = raw_data
 
     ar, gt_overlaps, recalls, thresholds = \
-        imdb.evaluate_recall(candidate_boxes=candidate_boxes)
+        imdb.evaluate_recall()
     print 'Method: {}'.format(args.method)
     print 'AverageRec: {:.3f}'.format(ar)
 

@@ -11,7 +11,7 @@ import yaml
 from spot.fast_rcnn.config import cfg
 from generate_anchors import generate_anchors
 from spot.fast_rcnn.bbox_transform import bbox_transform_inv, clip_boxes
-from spot.fast_rcnn.nms_wrapper import nms
+from spot.nms import nms
 
 DEBUG = False
 

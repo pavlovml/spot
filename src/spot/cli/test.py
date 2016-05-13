@@ -11,13 +11,12 @@
 
 from spot.fast_rcnn.test import test_net
 from spot.fast_rcnn.config import cfg
-from spot.datasets import IMDB
+from spot.dataset import FasterRCNNDataset
 from argparse import ArgumentParser
 
 import caffe
 import numpy as np
 import pprint
-import spot.roi_data_layer.roidb as rdl_roidb
 import sys
 
 def parse_args():
@@ -78,17 +77,25 @@ def setup_caffe(gpu=0, seed=None):
     caffe.set_mode_gpu()
     caffe.set_device(gpu)
 
-if __name__ == '__main__':
+def run():
     args = parse_args()
 
     setup_caffe(gpu=args.gpu, seed=args.seed)
 
-    dataset = IMDB(args.dataset)
+    dataset = FasterRCNNDataset(args.dataset)
     print 'Loaded dataset `{:s}` for testing ({:d} examples)'.format(dataset.name, len(dataset))
 
     test_file = '{:s}/test.prototxt'.format(args.model)
     net = caffe.Net(test_file, args.weights, caffe.TEST)
-    test_net(net, dataset, max_per_image=args.max_detections, vis=args.visualize)
+    all_boxes = test_net(net, dataset, max_per_image=args.max_detections, vis=args.visualize)
+    """
+    all_boxes is a list of length number-of-classes.
+    Each list element is a list of length number-of-images.
+    Each of those list elements is either an empty list []
+    or a numpy array of detection.
+
+    all_boxes[class][image] = [] or np.array of shape #dets x 5
+    """
 
     print 'done testing'
     sys.exit(0)

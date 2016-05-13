@@ -2,6 +2,6 @@
 *.so
 .ipynb_checkpoints
 lib/build
-data/test
+data
 models
 .git

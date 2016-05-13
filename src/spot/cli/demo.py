@@ -13,16 +13,14 @@ Demo script showing detections in sample images.
 See README.md for installation instructions before running.
 """
 
-import _init_paths
-from fast_rcnn.config import cfg
-from fast_rcnn.test import im_detect
-from fast_rcnn.nms_wrapper import nms
-from utils.timer import Timer
+from spot.fast_rcnn.config import cfg
+from spot.fast_rcnn.test import im_detect
+from spot.nms import nms
+from spot.utils.timer import Timer
+import caffe, os, sys, cv2, argparse, pprint
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io as sio
-import caffe, os, sys, cv2
-import argparse
 
 CLASSES = ('__background__',
            'aeroplane', 'bicycle', 'bird', 'boat',
@@ -30,12 +28,6 @@ CLASSES = ('__background__',
            'cow', 'diningtable', 'dog', 'horse',
            'motorbike', 'person', 'pottedplant',
            'sheep', 'sofa', 'train', 'tvmonitor')
-
-NETS = {'vgg16': ('VGG16',
-                  'VGG16_faster_rcnn_final.caffemodel'),
-        'zf': ('ZF',
-                  'ZF_faster_rcnn_final.caffemodel')}
-
 
 def vis_detections(im, class_name, dets, thresh=0.5):
     """Draw detected bounding boxes."""
@@ -68,13 +60,13 @@ def vis_detections(im, class_name, dets, thresh=0.5):
     plt.axis('off')
     plt.tight_layout()
     plt.draw()
+    plt.savefig('output/{:s}.png'.format(class_name))
 
-def demo(net, image_name):
+def demo(net, path):
     """Detect object classes in an image using pre-computed object proposals."""
 
     # Load the demo image
-    im_file = os.path.join(cfg.DATA_DIR, 'demo', image_name)
-    im = cv2.imread(im_file)
+    im = cv2.imread(path)
 
     # Detect all object classes and regress object bounds
     timer = Timer()
@@ -99,53 +91,63 @@ def demo(net, image_name):
 
 def parse_args():
     """Parse input arguments."""
-    parser = argparse.ArgumentParser(description='Faster R-CNN demo')
-    parser.add_argument('--gpu', dest='gpu_id', help='GPU device id to use [0]',
+    parser = argparse.ArgumentParser(description='Demonstrate a Faster R-CNN network')
+
+    parser.add_argument('-g', '--gpu', dest='gpu',
+                        help='GPU device id to use',
                         default=0, type=int)
-    parser.add_argument('--cpu', dest='cpu_mode',
-                        help='Use CPU mode (overrides --gpu)',
-                        action='store_true')
-    parser.add_argument('--net', dest='demo_net', help='Network to use [vgg16]',
-                        choices=NETS.keys(), default='vgg16')
+
+    parser.add_argument('-s', '--seed', dest='seed',
+                        help='fixed RNG seed',
+                        default=None, type=int)
+
+    parser.add_argument('model', metavar='model',
+                        help='model directory with test settings',
+                        type=str)
+
+    parser.add_argument('weights', metavar='weights',
+                        help='weights for the model',
+                        type=str)
+
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(1)
 
     args = parser.parse_args()
 
+    cfg.GPU_ID = args.gpu
+
+    print('Using config:')
+    pprint.pprint(cfg)
+
     return args
 
-if __name__ == '__main__':
-    cfg.TEST.HAS_RPN = True  # Use RPN for proposals
+def setup_caffe(gpu=0, seed=None):
+    """Initializes Caffe's python bindings."""
+    if seed:
+        np.random.seed(seed)
+        caffe.set_random_seed(seed)
 
+    caffe.set_mode_gpu()
+    caffe.set_device(gpu)
+
+def run():
     args = parse_args()
 
-    prototxt = os.path.join(cfg.MODELS_DIR, NETS[args.demo_net][0],
-                            'faster_rcnn_alt_opt', 'faster_rcnn_test.pt')
-    caffemodel = os.path.join(cfg.DATA_DIR, 'faster_rcnn_models',
-                              NETS[args.demo_net][1])
+    setup_caffe(gpu=args.gpu, seed=args.seed)
 
-    if not os.path.isfile(caffemodel):
-        raise IOError(('{:s} not found.\nDid you run ./data/script/'
-                       'fetch_faster_rcnn_models.sh?').format(caffemodel))
-
-    if args.cpu_mode:
-        caffe.set_mode_cpu()
-    else:
-        caffe.set_mode_gpu()
-        caffe.set_device(args.gpu_id)
-        cfg.GPU_ID = args.gpu_id
-    net = caffe.Net(prototxt, caffemodel, caffe.TEST)
-
-    print '\n\nLoaded network {:s}'.format(caffemodel)
+    test_file = '{:s}/test.prototxt'.format(args.model)
+    net = caffe.Net(test_file, args.weights, caffe.TEST)
 
     # Warmup on a dummy image
+    print 'Evaluating detections'
     im = 128 * np.ones((300, 500, 3), dtype=np.uint8)
     for i in xrange(2):
         _, _= im_detect(net, im)
 
-    im_names = ['000456.jpg', '000542.jpg', '001150.jpg',
-                '001763.jpg', '004545.jpg']
-    for im_name in im_names:
+    paths = ['data/demo/000456.jpg', 'data/demo/000542.jpg', 'data/demo/001150.jpg',
+                'data/demo/001763.jpg', 'data/demo/004545.jpg']
+    for path in paths:
         print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-        print 'Demo for data/demo/{}'.format(im_name)
-        demo(net, im_name)
-
-    plt.show()
+        print 'Demo for {}'.format(path)
+        demo(net, path)

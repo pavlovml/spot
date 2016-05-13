@@ -42,9 +42,7 @@ class OMFError(Exception):
         super(OMFError, self).__init__(message + (u', caused by ' + repr(cause) if cause else ''))
         self.cause = cause
 
-class IMDB(object):
-    """Image database."""
-
+class FasterRCNNDataset(object):
     def __init__(self, path, ann_ext='json', image_ext='jpg'):
         self.path = path
         self._roidb = None

@@ -14,7 +14,7 @@ from spot.utils.timer import Timer
 import numpy as np
 import cv2
 import caffe
-from spot.fast_rcnn.nms_wrapper import nms
+from spot.nms import nms
 import cPickle
 from spot.utils.blob import im_list_to_blob
 import os
@@ -243,6 +243,4 @@ def test_net(net, imdb, max_per_image=100, thresh=0.05, vis=False):
               .format(i + 1, num_images, _t['im_detect'].average_time,
                       _t['misc'].average_time)
 
-    print 'Evaluating detections'
-    print all_boxes
-    # imdb.evaluate_detections(all_boxes, output_dir)
+    return all_boxes

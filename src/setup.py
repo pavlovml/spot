@@ -23,7 +23,6 @@ def find_in_path(name, path):
             return os.path.abspath(binpath)
     return None
 
-
 def locate_cuda():
     """Locate the CUDA environment on the system
 
@@ -56,7 +55,6 @@ def locate_cuda():
 
     return cudaconfig
 CUDA = locate_cuda()
-
 
 # Obtain the numpy include directory.  This logic works across numpy versions.
 try:
@@ -101,29 +99,27 @@ def customize_compiler_for_nvcc(self):
     # inject our redefined _compile method into the class
     self._compile = _compile
 
-
 # run the customize_compiler
 class custom_build_ext(build_ext):
     def build_extensions(self):
         customize_compiler_for_nvcc(self.compiler)
         build_ext.build_extensions(self)
 
-
 ext_modules = [
     Extension(
-        "utils.cython_bbox",
-        ["utils/bbox.pyx"],
+        "spot.utils.cython_bbox",
+        ["spot/utils/bbox.pyx"],
         extra_compile_args={'gcc': ["-Wno-cpp", "-Wno-unused-function"]},
         include_dirs = [numpy_include]
     ),
     Extension(
-        "nms.cpu_nms",
-        ["nms/cpu_nms.pyx"],
+        "spot.nms.cpu_nms",
+        ["spot/nms/cpu_nms.pyx"],
         extra_compile_args={'gcc': ["-Wno-cpp", "-Wno-unused-function"]},
         include_dirs = [numpy_include]
     ),
-    Extension('nms.gpu_nms',
-        ['nms/nms_kernel.cu', 'nms/gpu_nms.pyx'],
+    Extension('spot.nms.gpu_nms',
+        ['spot/nms/nms_kernel.cu', 'spot/nms/gpu_nms.pyx'],
         library_dirs=[CUDA['lib64']],
         libraries=['cudart'],
         language='c++',
@@ -142,8 +138,33 @@ ext_modules = [
 ]
 
 setup(
-    name='fast_rcnn',
+    name='spot',
+    version='1.0.0',
+    description='An object detection toolchain for Caffe (Faster RCNN)',
+    author='Alex Kern',
+    author_email='alex@pavlovml.com',
+    url='https://github.com/pavlovml/spot',
     ext_modules=ext_modules,
+
+    packages=[
+        'spot',
+        'spot.cli',
+        'spot.fast_rcnn',
+        'spot.nms',
+        'spot.roi_data_layer',
+        'spot.rpn',
+        'spot.utils'
+    ],
+
+    entry_points = {
+        'console_scripts': [
+            'spot-train = spot.cli.train:run',
+            'spot-test = spot.cli.test:run',
+            'spot-demo = spot.cli.demo:run',
+        ],
+    },
+
     # inject our custom trigger
-    cmdclass={'build_ext': custom_build_ext},
-)
+    cmdclass={
+        'build_ext': custom_build_ext
+    })
