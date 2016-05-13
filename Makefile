@@ -1,20 +1,15 @@
 # ==============================================================================
 # config
 
-.PHONY: default build download-weights
+.PHONY: default build run download-weights
 
 default: install
-
-DATASET ?= data/omf
-GPU ?= 0
-ITERATIONS ?= 40000
-MODEL ?= ZF
 
 # ==============================================================================
 # phony targets
 
 build:
-	docker build -t pavlov/spot .
+	docker build -t pavlov/spotnet .
 
 run: build
 	docker run \
@@ -25,7 +20,9 @@ run: build
 		--device /dev/nvidiactl:/dev/nvidiactl \
 		--device /dev/nvidia-uvm:/dev/nvidia-uvm \
 		--device /dev/nvidia0:/dev/nvidia0 \
-		-it pavlov/spot
+		-it pavlov/spotnet
+
+# time stdbuf -i0 -o0 -e0 spot train -w models/VGG16/weights.caffemodel models/VGG16/train.prototxt data/omf 2>&1 | tee -a output/train-`date +%Y-%m-%d-%H-%M-%S`.log
 
 download-weights: models/imagenet_models.tgz
 	cd models && tar zxfv imagenet_models.tgz
@@ -33,14 +30,6 @@ download-weights: models/imagenet_models.tgz
 	mv models/imagenet_models/VGG16.v2.caffemodel models/VGG16/weights.caffemodel
 	mv models/imagenet_models/VGG_CNN_M_1024.v2.caffemodel models/VGG_CNN_M_1024/weights.caffemodel
 	rmdir models/imagenet_models
-
-train:
-	./bin/spot-train \
-		--gpu $(GPU) \
-		--model $(MODEL) \
-		--iterations $(ITERATIONS) \
-		--config config/default.yml \
-		$(DATASET)
 
 # ==============================================================================
 # file targets

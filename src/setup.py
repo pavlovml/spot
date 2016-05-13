@@ -158,9 +158,7 @@ setup(
 
     entry_points = {
         'console_scripts': [
-            'spot-train = spot.cli.train:run',
-            'spot-test = spot.cli.test:run',
-            'spot-demo = spot.cli.demo:run',
+            'spot = spot.cli:run'
         ],
     },
 

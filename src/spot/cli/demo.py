@@ -17,11 +17,12 @@ from spot.fast_rcnn.config import cfg
 from spot.fast_rcnn.test import im_detect
 from spot.nms import nms
 from spot.utils.timer import Timer
-import caffe, os, sys, cv2, argparse, pprint
+import caffe, os, sys, cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io as sio
 
+# TODO
 CLASSES = ('__background__',
            'aeroplane', 'bicycle', 'bird', 'boat',
            'bottle', 'bus', 'car', 'cat', 'chair',
@@ -89,41 +90,34 @@ def demo(net, path):
         dets = dets[keep, :]
         vis_detections(im, cls, dets, thresh=CONF_THRESH)
 
-def parse_args():
-    """Parse input arguments."""
-    parser = argparse.ArgumentParser(description='Demonstrate a Faster R-CNN network')
+def add_subparser(parent):
+    parser = parent.add_parser('demo', help='Demonstrate a Faster R-CNN network')
+    parser.set_defaults(func=run)
 
-    parser.add_argument('-g', '--gpu', dest='gpu',
-                        help='GPU device id to use',
-                        default=0, type=int)
+    parser.add_argument(
+            'model', metavar='MODEL',
+            help='model directory with test settings',
+            type=file)
 
-    parser.add_argument('-s', '--seed', dest='seed',
-                        help='fixed RNG seed',
-                        default=None, type=int)
+    parser.add_argument(
+            'weights', metavar='WEIGHTS',
+            help='weights for the model',
+            type=file)
 
-    parser.add_argument('model', metavar='model',
-                        help='model directory with test settings',
-                        type=str)
+    parser.add_argument(
+            '-g', '--gpu', dest='gpu',
+            help='GPU device id to use',
+            default=0, type=int)
 
-    parser.add_argument('weights', metavar='weights',
-                        help='weights for the model',
-                        type=str)
-
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(1)
-
-    args = parser.parse_args()
-
-    cfg.GPU_ID = args.gpu
-
-    print('Using config:')
-    pprint.pprint(cfg)
-
-    return args
+    parser.add_argument(
+            '-s', '--seed', dest='seed',
+            help='fixed RNG seed',
+            default=None, type=int)
 
 def setup_caffe(gpu=0, seed=None):
     """Initializes Caffe's python bindings."""
+    cfg.GPU_ID = gpu
+
     if seed:
         np.random.seed(seed)
         caffe.set_random_seed(seed)
@@ -131,13 +125,10 @@ def setup_caffe(gpu=0, seed=None):
     caffe.set_mode_gpu()
     caffe.set_device(gpu)
 
-def run():
-    args = parse_args()
-
+def run(args):
     setup_caffe(gpu=args.gpu, seed=args.seed)
 
-    test_file = '{:s}/test.prototxt'.format(args.model)
-    net = caffe.Net(test_file, args.weights, caffe.TEST)
+    net = caffe.Net(args.model.name, args.weights.name, caffe.TEST)
 
     # Warmup on a dummy image
     print 'Evaluating detections'
@@ -151,3 +142,5 @@ def run():
         print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
         print 'Demo for {}'.format(path)
         demo(net, path)
+
+    sys.exit(0)

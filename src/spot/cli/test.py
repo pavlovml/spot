@@ -7,69 +7,57 @@
 # Written by Ross Girshick
 # --------------------------------------------------------
 
-"""Test a Fast R-CNN network on an image database."""
-
-from spot.fast_rcnn.test import test_net
-from spot.fast_rcnn.config import cfg
 from spot.dataset import FasterRCNNDataset
-from argparse import ArgumentParser
-
-import caffe
+from spot.fast_rcnn.config import cfg
+from spot.fast_rcnn.test import test_net
+import caffe, sys
 import numpy as np
-import pprint
-import sys
 
-def parse_args():
-    """Parse input arguments"""
-    parser = ArgumentParser(description='Train a Faster R-CNN network')
+def add_subparser(parent):
+    parser = parent.add_parser('test', help='Train a Faster R-CNN network')
+    parser.set_defaults(func=run)
 
-    parser.add_argument('-g', '--gpu', dest='gpu',
-                        help='GPU device id to use',
-                        default=0, type=int)
+    parser.add_argument(
+            'model', metavar='MODEL',
+            help='model directory with test settings',
+            type=file)
 
-    parser.add_argument('-i', '--iterations', dest='iterations',
-                        help='number of iterations to train',
-                        default=40000, type=int)
+    parser.add_argument(
+            'weights', metavar='WEIGHTS',
+            help='weights for the model',
+            type=file)
 
-    parser.add_argument('-s', '--seed', dest='seed',
-                        help='fixed RNG seed',
-                        default=None, type=int)
+    parser.add_argument(
+            'dataset', metavar='DATASET',
+            help='path to testing dataset',
+            type=str)
 
-    parser.add_argument('--max-detections', dest='max_detections',
-                        help='max number of detections per image',
-                        default=10000, type=int)
+    testing_group = parser.add_argument_group('testing arguments')
 
-    parser.add_argument('-v', '--visualize', dest='visualize',
-                        help='visualize detections',
-                        action='store_true')
+    testing_group.add_argument(
+            '-g', '--gpu', dest='gpu',
+            help='GPU device id to use',
+            default=0, type=int)
 
-    parser.add_argument('model', metavar='model',
-                        help='model directory with test settings',
-                        type=str)
+    testing_group.add_argument(
+            '-i', '--iterations', dest='iterations',
+            help='number of iterations to train',
+            default=40000, type=int)
 
-    parser.add_argument('weights', metavar='weights',
-                        help='weights for the model',
-                        type=str)
+    testing_group.add_argument(
+            '-s', '--seed', dest='seed',
+            help='fixed RNG seed',
+            default=None, type=int)
 
-    parser.add_argument('dataset', metavar='DATASET',
-                        help='path to testing dataset',
-                        type=str)
-
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(1)
-
-    args = parser.parse_args()
-
-    cfg.GPU_ID = args.gpu
-
-    print('Using config:')
-    pprint.pprint(cfg)
-
-    return args
+    testing_group.add_argument(
+            '--max-detections', dest='max_detections',
+            help='max number of detections per image',
+            default=10000, type=int)
 
 def setup_caffe(gpu=0, seed=None):
     """Initializes Caffe's python bindings."""
+    cfg.GPU_ID = gpu
+
     if seed:
         np.random.seed(seed)
         caffe.set_random_seed(seed)
@@ -77,25 +65,21 @@ def setup_caffe(gpu=0, seed=None):
     caffe.set_mode_gpu()
     caffe.set_device(gpu)
 
-def run():
-    args = parse_args()
-
+def run(args):
     setup_caffe(gpu=args.gpu, seed=args.seed)
 
     dataset = FasterRCNNDataset(args.dataset)
     print 'Loaded dataset `{:s}` for testing ({:d} examples)'.format(dataset.name, len(dataset))
 
-    test_file = '{:s}/test.prototxt'.format(args.model)
-    net = caffe.Net(test_file, args.weights, caffe.TEST)
-    all_boxes = test_net(net, dataset, max_per_image=args.max_detections, vis=args.visualize)
-    """
-    all_boxes is a list of length number-of-classes.
-    Each list element is a list of length number-of-images.
-    Each of those list elements is either an empty list []
-    or a numpy array of detection.
+    net = caffe.Net(args.model.name, args.weights.name, caffe.TEST)
 
-    all_boxes[class][image] = [] or np.array of shape #dets x 5
-    """
+    # all_boxes is a list of length number-of-classes.
+    # Each list element is a list of length number-of-images.
+    # Each of those list elements is either an empty list []
+    # or a numpy array of detection.
+    #
+    # all_boxes[class][image] = [] or np.array of shape #dets x 5
+    all_boxes = test_net(net, dataset, max_per_image=args.max_detections, vis=False)
 
     print 'done testing'
     sys.exit(0)

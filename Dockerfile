@@ -6,8 +6,8 @@ RUN mkdir -p /spot
 WORKDIR /spot
 COPY . .
 RUN cd /spot/src && \
-    python setup.py install && \
     pip install -r requirements.txt && \
+    python setup.py install && \
     cd /spot && rm -rf src/spot/build
 
 # run

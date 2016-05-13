@@ -5,15 +5,21 @@
 # Written by Ross Girshick
 # --------------------------------------------------------
 
-"""Train a Fast R-CNN network."""
-
 from caffe.proto import caffe_pb2
 from spot.utils.timer import Timer
-import caffe
+import os, tempfile, caffe
 import google.protobuf as pb2
 import numpy as np
-import os
 import spot.roi_data_layer.roidb as rdl_roidb
+
+DEFAULT_LR_CONFIG = {
+    'base': 0.001,
+    'policy': 'step',
+    'gamma': 0.01,
+    'step_size': 10000,
+    'momentum': 0.9,
+    'weight_decay': 0.0005
+}
 
 class FasterRCNNSolver(object):
     """
@@ -22,39 +28,54 @@ class FasterRCNNSolver(object):
     use to unnormalize the learned bounding-box regression weights.
     """
 
-    def __init__(self, dataset, output_dir, solver_file,
+    def __init__(
+            self, model_file, dataset,
             weights_file=None,
-            snapshot_iterations=10000):
-        self.output_dir = output_dir
-        self.snapshot_iterations = snapshot_iterations
+            lr_config=DEFAULT_LR_CONFIG,
+            iteration_size=2,
+            snapshot_dir='output',
+            snapshot_every=5000,
+            snapshot_prefix='spot'):
+        self.model_file = model_file
+        self.weights_file = weights_file
+        self.dataset = dataset
+        self.lr_config = lr_config
+        self.iteration_size = iteration_size
+        self.snapshot_dir = snapshot_dir
+        self.snapshot_every = snapshot_every
+        self.snapshot_prefix = snapshot_prefix
 
-        self.load_solver(solver_file)
+        self.solver_file = self.create_solver_prototxt()
+        self.solver = caffe.SGDSolver(self.solver_file)
 
         if weights_file is not None:
-            self.load_weights(weights_file)
-
-        self.load_dataset(dataset)
-
-    def load_solver(self, solver_file):
-        self.solver = caffe.SGDSolver(solver_file)
-        params = caffe_pb2.SolverParameter()
-        with open(solver_file, 'rt') as f:
-            pb2.text_format.Merge(f.read(), params)
-        self.display = params.display
-        self.snapshot_prefix = params.snapshot_prefix
-
-    def load_weights(self, weights_file):
-        print 'Loading model weights from {:s}'.format(weights_file)
-        self.solver.net.copy_from(weights_file)
-
-    def load_dataset(self, dataset):
-        self.dataset = dataset
+            print 'Loading model weights from {:s}'.format(weights_file)
+            self.solver.net.copy_from(weights_file)
 
         print 'Computing bounding-box regression targets...'
         self.bbox_means, self.bbox_stds = \
                 rdl_roidb.add_bbox_regression_targets(dataset.roidb)
 
         self.solver.net.layers[0].set_roidb(dataset.roidb)
+
+    def create_solver_prototxt(self):
+        params = caffe_pb2.SolverParameter()
+        params.train_net = self.model_file
+        params.display = 1
+        params.average_loss = 100
+        params.iter_size = self.iteration_size
+        params.base_lr = self.lr_config['base']
+        params.lr_policy = self.lr_config['policy']
+        params.gamma = self.lr_config['gamma']
+        params.stepsize = self.lr_config['step_size']
+        params.momentum = self.lr_config['momentum']
+        params.weight_decay = self.lr_config['weight_decay']
+        params.snapshot = 0 # disable standard Caffe snapshots
+
+        f = tempfile.NamedTemporaryFile(mode='w+', delete=False)
+        f.write(pb2.text_format.MessageToString(params))
+        f.close()
+        return f.name
 
     def snapshot(self):
         """
@@ -77,7 +98,7 @@ class FasterRCNNSolver(object):
 
         filename = (self.snapshot_prefix +
                     '_iter_{:d}'.format(self.solver.iter) + '.caffemodel')
-        filename = os.path.join(self.output_dir, filename)
+        filename = os.path.join(self.snapshot_dir, filename)
         net.save(str(filename))
         print 'Wrote snapshot to: {:s}'.format(filename)
 
@@ -96,10 +117,10 @@ class FasterRCNNSolver(object):
             timer.tic()
             self.solver.step(1)
             timer.toc()
-            if self.solver.iter % (10 * self.display) == 0:
+            if self.solver.iter % 10 == 0:
                 print 'speed: {:.3f}s / iter'.format(timer.average_time)
 
-            if self.solver.iter % self.snapshot_iterations == 0:
+            if self.solver.iter % self.snapshot_every == 0:
                 last_snapshot_iter = self.solver.iter
                 model_paths.append(self.snapshot())
 

@@ -7,71 +7,113 @@
 # Written by Ross Girshick
 # --------------------------------------------------------
 
-"""Train a Fast R-CNN network on a region of interest database."""
-
 from spot.fast_rcnn.train import FasterRCNNSolver
 from spot.fast_rcnn.config import cfg
 from spot.utils.mkdirp import mkdirp
 from spot.dataset import FasterRCNNDataset
-from argparse import ArgumentParser
-
-import caffe
+import caffe, sys
 import numpy as np
-import pprint
 import spot.roi_data_layer.roidb as rdl_roidb
-import sys
 
-def parse_args():
-    """Parse input arguments"""
-    parser = ArgumentParser(description='Train a Faster R-CNN network')
+def add_subparser(parent):
+    parser = parent.add_parser('train', help='Train a Faster R-CNN network')
+    parser.set_defaults(func=run)
 
-    parser.add_argument('-g', '--gpu', dest='gpu',
-                        help='GPU device id to use',
-                        default=0, type=int)
+    parser.add_argument(
+            'model', metavar='MODEL',
+            help='model spec with train settings',
+            type=file)
 
-    parser.add_argument('-i', '--iterations', dest='iterations',
-                        help='number of iterations to train',
-                        default=40000, type=int)
+    parser.add_argument(
+            'dataset', metavar='DATASET',
+            help='path to training dataset',
+            type=str)
 
-    parser.add_argument('-s', '--seed', dest='seed',
-                        help='fixed RNG seed',
-                        default=None, type=int)
+    training_group = parser.add_argument_group('training arguments')
 
-    parser.add_argument('-f', '--flipped', dest='flipped',
-                        help='include flipped images in training dataset',
-                        action='store_true')
+    training_group.add_argument(
+            '-g', '--gpu', dest='gpu',
+            help='GPU device id to use [0]',
+            default=0, type=int)
 
-    parser.add_argument('-o', '--output', dest='output',
-                        help='directory to save snapshots to',
-                        default='output', type=str)
+    training_group.add_argument(
+            '-w', '--weights', dest='weights',
+            help='weights to fine-tune from',
+            type=file)
 
-    parser.add_argument('--snapshot-iterations', dest='snapshot_iterations',
-                        help='number of iterations between snapshots',
-                        default=10000, type=int)
+    training_group.add_argument(
+            '-i', '--iterations', dest='iterations',
+            help='number of iterations to train [40000]',
+            default=40000, type=int)
 
-    parser.add_argument('model', metavar='model',
-                        help='model directory with solver/test/train settings and weights',
-                        type=str)
+    training_group.add_argument(
+            '-k', '--iteration-size', dest='iteration_size',
+            help='number of images in each iteration [2]',
+            default=2, type=int)
 
-    parser.add_argument('dataset', metavar='DATASET',
-                        help='path to training dataset',
-                        type=str)
+    training_group.add_argument(
+            '-f', '--flipped', dest='flipped',
+            help='include flipped images in training dataset',
+            action='store_true')
 
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(1)
+    training_group.add_argument(
+            '-s', '--seed', dest='seed',
+            help='fixed RNG seed',
+            default=None, type=int)
 
-    args = parser.parse_args()
+    snapshot_group = parser.add_argument_group('snapshot arguments')
 
-    cfg.GPU_ID = args.gpu
+    snapshot_group.add_argument(
+            '-o', '--snapshot-dir', dest='snapshot_dir',
+            help='directory to save snapshots to [output]',
+            default='output', type=str)
 
-    print('Using config:')
-    pprint.pprint(cfg)
+    snapshot_group.add_argument(
+            '-e', '--snapshot-every', dest='snapshot_every',
+            help='number of iterations between snapshots [5000]',
+            default=5000, type=int)
 
-    return args
+    snapshot_group.add_argument(
+            '-p', '--snapshot-prefix', dest='snapshot_prefix',
+            help='prefix for saved weights snapshots [spot]',
+            default='spot', type=str)
+
+    lr_group = parser.add_argument_group('learning rate arguments')
+
+    lr_group.add_argument(
+            '--lr-base', dest='lr_base',
+            help='initial learning rate [0.001]',
+            default=0.001, type=float)
+
+    lr_group.add_argument(
+            '--lr-policy', dest='lr_policy',
+            help='learning rate policy [step]',
+            default='step', type=str)
+
+    lr_group.add_argument(
+            '--lr-gamma', dest='lr_gamma',
+            help='learning rate gamma [0.01]',
+            default=0.01, type=float)
+
+    lr_group.add_argument(
+            '--lr-step-size', dest='lr_step_size',
+            help='learning rate gamma [10000]',
+            default=10000, type=int)
+
+    lr_group.add_argument(
+            '--lr-momentum', dest='lr_momentum',
+            help='learning rate gamma [0.9]',
+            default=0.9, type=float)
+
+    lr_group.add_argument(
+            '--lr-weight-decay', dest='lr_weight_decay',
+            help='learning rate weight decay [0.0005]',
+            default=0.0005, type=float)
 
 def setup_caffe(gpu=0, seed=None):
     """Initializes Caffe's python bindings."""
+    cfg.GPU_ID = gpu
+
     if seed:
         np.random.seed(seed)
         caffe.set_random_seed(seed)
@@ -79,9 +121,7 @@ def setup_caffe(gpu=0, seed=None):
     caffe.set_mode_gpu()
     caffe.set_device(gpu)
 
-def run():
-    args = parse_args()
-
+def run(args):
     setup_caffe(gpu=args.gpu, seed=args.seed)
 
     dataset = FasterRCNNDataset(args.dataset)
@@ -95,18 +135,27 @@ def run():
     rdl_roidb.prepare_roidb(dataset)
     print 'Loaded {:d} training examples'.format(len(dataset))
 
-    mkdirp(args.output)
-    print 'Output will be saved to `{:s}`'.format(args.output)
+    mkdirp(args.snapshot_dir)
+    print 'Snapshots will be saved to `{:s}`'.format(args.snapshot_dir)
 
-    solver_file = '{:s}/solver.prototxt'.format(args.model)
-    weights_file = '{:s}/weights.caffemodel'.format(args.model)
+    lr_config = {
+        'base': args.lr_base,
+        'policy': args.lr_policy,
+        'gamma': args.lr_gamma,
+        'step_size': args.lr_step_size,
+        'momentum': args.lr_momentum,
+        'weight_decay': args.lr_weight_decay
+    }
 
     solver = FasterRCNNSolver(
-            solver_file=solver_file,
-            weights_file=weights_file,
+            model_file=args.model.name,
+            weights_file=args.weights.name,
             dataset=dataset,
-            output_dir=args.output,
-            snapshot_iterations=args.snapshot_iterations)
+            lr_config=lr_config,
+            iteration_size=args.iteration_size,
+            snapshot_dir=args.snapshot_dir,
+            snapshot_every=args.snapshot_every,
+            snapshot_prefix=args.snapshot_prefix)
 
     print 'Solving...'
     model_paths = solver.train_model(args.iterations)
