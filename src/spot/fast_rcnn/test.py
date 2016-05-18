@@ -209,7 +209,7 @@ def test_net(net, imdb, max_per_image=100, thresh=0.05, vis=False):
         # filter out any ground truth boxes
         box_proposals = None
 
-        im = cv2.imread(imdb.image_path_at(i))
+        im = cv2.imread(imdb.tags[i]['image'])
         _t['im_detect'].tic()
         scores, boxes = im_detect(net, im, box_proposals)
         _t['im_detect'].toc()

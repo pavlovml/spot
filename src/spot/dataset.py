@@ -148,8 +148,3 @@ class FasterRCNNDataset(object):
         self.name = self.path
         self.num_classes = len(self.indices_to_labels)
         self.num_images = len(self.roidb)
-        self.classes = self.indices_to_labels
-
-    def image_path_at(self, i):
-        """Return the absolute path to image i in the image sequence."""
-        return self.tags[i]['image']
