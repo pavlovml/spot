@@ -9,7 +9,7 @@
 
 from spot.fast_rcnn.train import FasterRCNNSolver
 from spot.fast_rcnn.config import cfg
-from spot.utils.mkdirp import mkdirp
+from spot.utils.fs import mkdirp
 from spot.dataset import FasterRCNNDataset
 import caffe, sys
 import numpy as np
@@ -124,16 +124,12 @@ def setup_caffe(gpu=0, seed=None):
 def run(args):
     setup_caffe(gpu=args.gpu, seed=args.seed)
 
-    dataset = FasterRCNNDataset(args.dataset)
-    print 'Loaded dataset `{:s}` for training'.format(dataset.name)
+    dataset = FasterRCNNDataset(
+            args.dataset,
+            include_flipped=args.flipped,
+            enrich=True)
 
-    if args.flipped:
-        print 'Appending horizontally-flipped training examples...'
-        dataset.append_flipped_images()
-
-    print 'Preparing training data...'
-    rdl_roidb.prepare_roidb(dataset)
-    print 'Loaded {:d} training examples'.format(len(dataset))
+    print 'Loaded dataset `{:s}` for training ({:d} examples)'.format(dataset.name, len(dataset.tags))
 
     mkdirp(args.snapshot_dir)
     print 'Snapshots will be saved to `{:s}`'.format(args.snapshot_dir)
@@ -149,7 +145,7 @@ def run(args):
 
     solver = FasterRCNNSolver(
             model_file=args.model.name,
-            weights_file=args.weights.name,
+            weights_file=args.weights.name if args.weights else None,
             dataset=dataset,
             lr_config=lr_config,
             iteration_size=args.iteration_size,

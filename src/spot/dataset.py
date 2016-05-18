@@ -5,131 +5,151 @@
 # Written by Ross Girshick
 # --------------------------------------------------------
 
-from spot.fast_rcnn.config import cfg
-from spot.utils.cython_bbox import bbox_overlaps
-import PIL, fnmatch, json, os
+from spot.utils.fs import load_json_file, glob_keyed_files
+import random
 import numpy as np
 import scipy.sparse
 
-def glob_keyed_files(path, ext):
-    res = {}
-    for root, dirnames, filenames in os.walk(path):
-        for filename in fnmatch.filter(filenames, '*.' + ext):
-            key = os.path.splitext(os.path.basename(filename))[0]
-            res[key] = os.path.join(root, filename)
-    return res
+def sample_from(l, n):
+    extras = [random.choice(l) for _ in range(n - len(l))]
+    result = l[:n] + extras
+    random.shuffle(result)
+    return result
 
-class LabelSet:
-    def __init__(self, labels):
-        self.labels = labels
-        self.indices = dict(zip(labels, xrange(len(labels))))
+def image_size(filename):
+    import PIL
+    return PIL.Image.open(filename).size
 
-    def __len__(self):
-        return len(self.labels)
+def value_to_index(l):
+    return dict(zip(l, xrange(len(l))))
 
-    def index(self, label):
-        return self.indices[label]
+def create_roidb(
+        tags, labels_to_indices,
+        include_flipped=False,
+        enrich=False):
+    roidb = []
 
-    def label(self, index):
-        return self.labels[index]
-
-class SpotError(Exception):
-    def __init__(self, message, cause=None):
-        super(SpotError, self).__init__(message + (u', caused by ' + repr(cause) if cause else ''))
-        self.cause = cause
-
-# A roidb is a list of dictionaries, each with the following keys:
-#   boxes
-#   gt_overlaps
-#   gt_classes
-#   flipped
-class FasterRCNNDataset(object):
-    def __init__(self, path, ann_ext='json', image_ext='jpg'):
-        self.path = path
-        self._roidb = None
-        self.annotation_files = glob_keyed_files(path, ann_ext)
-        self.image_files = glob_keyed_files(path, image_ext)
-        self.examples = list(self.image_files.keys())
-        labels = self.load_label_set_annotation()
-        self.label_set = LabelSet(labels)
-        self.roidb = [self.load_image_annotation(i) for i in self.examples]
-
-    def __len__(self):
-        return len(self.examples)
-
-    @property
-    def name(self):
-        return self.path
-
-    @property
-    def num_classes(self):
-        return len(self.label_set)
-
-    @property
-    def classes(self):
-        return self.label_set
-
-    @property
-    def num_images(self):
-        return len(self.examples)
-
-    @property
-    def image_index(self):
-        return self.examples
-
-    def load_annotation(self, name):
-        try:
-            filename = self.annotation_files[name]
-            with open(filename) as f:
-                data = json.load(f)
-            return data
-        except KeyError:
-            raise SpotError("Could not find annotation '" + name + "'")
-        except ValueError:
-            raise SpotError("Could not decode JSON annotation '" + name + "'")
-
-    def load_label_set_annotation(self, name='labels'):
-        data = self.load_annotation(name)
-        return data['labels']
-
-    def load_image_annotation(self, name):
-        data = self.load_annotation(name)[0]
-        label_index = self.label_set.index(data['label'])
+    for tag in tags:
+        label_index = labels_to_indices[tag['label']]
 
         boxes = np.zeros((1, 4), dtype=np.uint16)
-        boxes[0, :] = data['bounds']
+        boxes[0, :] = tag['bounds']
 
         gt_classes = np.zeros((1), dtype=np.int32)
         gt_classes[0] = label_index
 
-        overlaps = np.zeros((1, len(self.label_set)), dtype=np.float32)
+        overlaps = np.zeros((1, len(labels_to_indices)), dtype=np.float32)
         overlaps[0, label_index] = 1.0
         overlaps = scipy.sparse.csr_matrix(overlaps)
 
-        return { 'boxes': boxes,
-                 'gt_classes': gt_classes,
-                 'gt_overlaps': overlaps,
-                 'flipped': False }
+        entries = [{
+            'boxes': boxes,
+            'gt_classes': gt_classes,
+            'gt_overlaps': overlaps,
+            'flipped': False
+        }]
+
+        if include_flipped or enrich:
+            size = image_size(tag['image'])
+
+            if include_flipped:
+                flipped_boxes = boxes.copy()
+                oldx1 = flipped_boxes[:, 0].copy()
+                oldx2 = flipped_boxes[:, 2].copy()
+                boxes[:, 0] = size[0] - oldx2
+                boxes[:, 2] = size[0] - oldx1
+                assert (flipped_boxes[:, 2] >= flipped_boxes[:, 0]).all()
+
+                entries.append({
+                    'boxes': flipped_boxes,
+                    'gt_classes': gt_classes,
+                    'gt_overlaps': overlaps,
+                    'flipped': True
+                })
+
+            if enrich:
+                for entry in entries:
+                    entry['image'] = tag['image']
+                    entry['width'] = size[0]
+                    entry['height'] = size[1]
+                    dense_overlaps = overlaps.toarray()
+                    # max overlap with gt over classes (columns)
+                    max_overlaps = dense_overlaps.max(axis=1)
+                    # gt class that had the max overlap
+                    max_classes = dense_overlaps.argmax(axis=1)
+                    entry['max_classes'] = max_classes
+                    entry['max_overlaps'] = max_overlaps
+                    # sanity checks
+                    # max overlap of 0 => class should be zero (background)
+                    zero_inds = np.where(max_overlaps == 0)[0]
+                    assert all(max_classes[zero_inds] == 0)
+                    # max overlap > 0 => class should not be zero (must be a fg class)
+                    nonzero_inds = np.where(max_overlaps > 0)[0]
+                    assert all(max_classes[nonzero_inds] != 0)
+
+        roidb += entries
+
+    return roidb
+
+class FasterRCNNDataset(object):
+    def __init__(
+            self, path,
+            tag_ext='json',
+            img_ext='jpg',
+            include_flipped=False,
+            enrich=False):
+        self.path = path
+
+        # Iterate over all of the JSON tag files, associating each with a
+        # corresponding image file.
+        count_by_label = {}
+        tags_by_label = {}
+        tag_files = glob_keyed_files(path, tag_ext)
+        img_files = glob_keyed_files(path, img_ext)
+        for name, tag_filename in tag_files.items():
+            tags = load_json_file(tag_filename)
+
+            # TODO: Support multiple tags per image.
+            if len(tags) == 0:
+                continue
+            print tag_filename, repr(tags)
+            tag = tags[0]
+
+            label = tag['label']
+            if label not in tags_by_label:
+                count_by_label[label] = 0
+                tags_by_label[label] = []
+
+            count_by_label[label] += 1
+            tags_by_label[label].append({
+                'label': label,
+                'image': img_files[name],
+                'bounds': tag['bounds']
+            })
+
+        # Ensure that each label has an equal number of tags by sampling from
+        # the provided tags.
+        self.tags = []
+        max_count_by_label = max(count_by_label.values())
+        for label, tags in tags_by_label.items():
+            self.tags += sample_from(tags, max_count_by_label)
+
+        # Associate each label with an index based on its sort order.
+        self.indices_to_labels = ['__background__'] + sorted(tags_by_label.keys())
+        self.labels_to_indices = value_to_index(self.indices_to_labels)
+
+        # Create the roidb for Faster-RCNN.
+        self.roidb = create_roidb(
+                self.tags, self.labels_to_indices,
+                include_flipped=include_flipped,
+                enrich=enrich)
+
+        # kludge
+        self.name = self.path
+        self.num_classes = len(self.indices_to_labels)
+        self.num_images = len(self.roidb)
+        self.classes = self.indices_to_labels
 
     def image_path_at(self, i):
         """Return the absolute path to image i in the image sequence."""
-        name = self.examples[i]
-        return self.image_files[name]
-
-    def append_flipped_images(self):
-        num_images = self.num_images
-        widths = [PIL.Image.open(self.image_path_at(i)).size[0]
-                  for i in xrange(self.num_images)]
-        for i in xrange(num_images):
-            boxes = self.roidb[i]['boxes'].copy()
-            oldx1 = boxes[:, 0].copy()
-            oldx2 = boxes[:, 2].copy()
-            boxes[:, 0] = widths[i] - oldx2 # - 1
-            boxes[:, 2] = widths[i] - oldx1 # - 1
-            assert (boxes[:, 2] >= boxes[:, 0]).all()
-            entry = { 'boxes': boxes,
-                      'gt_overlaps': self.roidb[i]['gt_overlaps'],
-                      'gt_classes': self.roidb[i]['gt_classes'],
-                      'flipped': True }
-            self.roidb.append(entry)
-        self.examples = self.examples * 2
+        return self.tags[i]['image']
