@@ -129,7 +129,8 @@ def run(args):
             include_flipped=args.flipped,
             enrich=True)
 
-    print 'Loaded dataset `{:s}` for training ({:d} examples)'.format(dataset.name, len(dataset.tags))
+    print 'Loaded dataset `{:s}` for training ({:d} examples)' \
+            .format(dataset.path, len(dataset.tags))
 
     mkdirp(args.snapshot_dir)
     print 'Snapshots will be saved to `{:s}`'.format(args.snapshot_dir)

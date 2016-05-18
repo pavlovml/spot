@@ -144,7 +144,6 @@ class FasterRCNNDataset(object):
                 include_flipped=include_flipped,
                 enrich=enrich)
 
-        # kludge
-        self.name = self.path
+        # TODO
         self.num_classes = len(self.indices_to_labels)
         self.num_images = len(self.roidb)
