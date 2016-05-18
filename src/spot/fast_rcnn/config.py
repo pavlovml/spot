@@ -17,8 +17,6 @@ Most tools in $ROOT/tools take a --cfg option to specify an override file.
     - See experiments/cfgs/*.yml for example YAML config override files
 """
 
-import os
-import os.path as osp
 import numpy as np
 from easydict import EasyDict as edict
 
@@ -145,18 +143,6 @@ __C.DEDUP_BOXES = 1./16.
 # We use the same pixel mean for all networks even though it's not exactly what
 # they were trained with
 __C.PIXEL_MEANS = np.array([[[102.9801, 115.9465, 122.7717]]])
-
-# For reproducibility
-__C.RNG_SEED = 3
-
-# Root directory of project
-__C.ROOT_DIR = osp.abspath(osp.join(osp.dirname(__file__), '..', '..'))
-
-# Data directory
-__C.DATA_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'data'))
-
-# Use GPU implementation of non-maximum suppression
-__C.USE_GPU_NMS = True
 
 # Default GPU device id
 __C.GPU_ID = 0
