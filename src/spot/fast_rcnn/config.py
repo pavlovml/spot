@@ -69,7 +69,8 @@ __C.TRAIN.BBOX_NORMALIZE_STDS = (0.1, 0.1, 0.2, 0.2)
 # Make minibatches from images that have similar aspect ratios (i.e. both
 # tall and thin or both short and wide) in order to avoid wasting computation
 # on zero-padding.
-__C.TRAIN.ASPECT_GROUPING = True
+# __C.TRAIN.ASPECT_GROUPING = True
+__C.TRAIN.ASPECT_GROUPING = False
 
 # IOU >= thresh: positive example
 __C.TRAIN.RPN_POSITIVE_OVERLAP = 0.7
