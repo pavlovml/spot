@@ -7,13 +7,11 @@
 # Written by Ross Girshick
 # --------------------------------------------------------
 
-from spot.fast_rcnn.train import FasterRCNNSolver
-from spot.fast_rcnn.config import cfg
-from spot.utils.fs import mkdirp
-from spot.dataset import FasterRCNNDataset
-import caffe, sys
-import numpy as np
-import spot.roi_data_layer.roidb as rdl_roidb
+from ..net import setup_caffe, load_train_net
+from ..dataset import FasterRCNNDataset
+from ..fast_rcnn.train import FasterRCNNSolver
+from ..utils.fs import mkdirp
+import sys
 
 def add_subparser(parent):
     parser = parent.add_parser('train', help='Train a Faster R-CNN network')
@@ -21,7 +19,7 @@ def add_subparser(parent):
 
     parser.add_argument(
             'model', metavar='MODEL',
-            help='model spec with train settings',
+            help='model factory',
             type=file)
 
     parser.add_argument(
@@ -110,17 +108,6 @@ def add_subparser(parent):
             help='learning rate weight decay [0.0005]',
             default=0.0005, type=float)
 
-def setup_caffe(gpu=0, seed=None):
-    """Initializes Caffe's python bindings."""
-    cfg.GPU_ID = gpu
-
-    if seed:
-        np.random.seed(seed)
-        caffe.set_random_seed(seed)
-
-    caffe.set_mode_gpu()
-    caffe.set_device(gpu)
-
 def run(args):
     setup_caffe(gpu=args.gpu, seed=args.seed)
 
@@ -145,7 +132,7 @@ def run(args):
     }
 
     solver = FasterRCNNSolver(
-            model_file=args.model.name,
+            net_factory=load_train_net(args.model.name),
             weights_file=args.weights.name if args.weights else None,
             dataset=dataset,
             lr_config=lr_config,

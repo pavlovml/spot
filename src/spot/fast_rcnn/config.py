@@ -114,10 +114,6 @@ __C.TEST.MAX_SIZE = 1000
 # IoU >= this threshold)
 __C.TEST.NMS = 0.3
 
-# Experimental: treat the (K+1) units in the cls_score layer as linear
-# predictors (trained, eg, with one-vs-rest SVMs).
-__C.TEST.SVM = False
-
 ## NMS threshold used on RPN proposals
 __C.TEST.RPN_NMS_THRESH = 0.7
 ## Number of top scoring boxes to keep before apply NMS to RPN proposals

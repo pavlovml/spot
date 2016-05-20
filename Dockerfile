@@ -11,4 +11,4 @@ RUN cd /spot/src && \
     cd /spot && rm -rf src/spot/build
 
 # run
-CMD python make_net.py
+CMD bash

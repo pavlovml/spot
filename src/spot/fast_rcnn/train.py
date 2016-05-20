@@ -21,32 +21,37 @@ DEFAULT_LR_CONFIG = {
     'weight_decay': 0.0005
 }
 
+def save_prototxt(proto):
+    f = tempfile.NamedTemporaryFile(mode='w+', delete=False)
+    f.write(pb2.text_format.MessageToString(proto))
+    f.close()
+    return f.name
+
 class FasterRCNNSolver(object):
     """
     A simple wrapper around Caffe's solver.
-    This wrapper gives us control over he snapshotting process, which we
+    This wrapper gives us control over the snapshotting process, which we
     use to unnormalize the learned bounding-box regression weights.
     """
 
     def __init__(
-            self, model_file, dataset,
+            self, net_factory, dataset,
             weights_file=None,
             lr_config=DEFAULT_LR_CONFIG,
             iteration_size=2,
             snapshot_dir='output',
             snapshot_every=5000,
             snapshot_prefix='spot'):
-        self.model_file = model_file
-        self.weights_file = weights_file
+        self.net_factory = net_factory
         self.dataset = dataset
+        self.weights_file = weights_file
         self.lr_config = lr_config
         self.iteration_size = iteration_size
         self.snapshot_dir = snapshot_dir
         self.snapshot_every = snapshot_every
         self.snapshot_prefix = snapshot_prefix
 
-        self.solver_file = self.create_solver_prototxt()
-        self.solver = caffe.SGDSolver(self.solver_file)
+        self.solver = self.create_solver()
 
         if weights_file is not None:
             print 'Loading model weights from {:s}'.format(weights_file)
@@ -58,24 +63,23 @@ class FasterRCNNSolver(object):
 
         self.solver.net.layers[0].set_roidb(dataset.roidb)
 
-    def create_solver_prototxt(self):
-        params = caffe_pb2.SolverParameter()
-        params.train_net = self.model_file
-        params.display = 1
-        params.average_loss = 100
-        params.iter_size = self.iteration_size
-        params.base_lr = self.lr_config['base']
-        params.lr_policy = self.lr_config['policy']
-        params.gamma = self.lr_config['gamma']
-        params.stepsize = self.lr_config['step_size']
-        params.momentum = self.lr_config['momentum']
-        params.weight_decay = self.lr_config['weight_decay']
-        params.snapshot = 0 # disable standard Caffe snapshots
-
-        f = tempfile.NamedTemporaryFile(mode='w+', delete=False)
-        f.write(pb2.text_format.MessageToString(params))
-        f.close()
-        return f.name
+    def create_solver(self):
+        net_params = self.net_factory(num_classes=self.dataset.num_classes)
+        train_prototxt = save_prototxt(net_params)
+        solver_params = caffe_pb2.SolverParameter()
+        solver_params.train_net = train_prototxt
+        solver_params.display = 1
+        solver_params.average_loss = 100
+        solver_params.iter_size = self.iteration_size
+        solver_params.base_lr = self.lr_config['base']
+        solver_params.lr_policy = self.lr_config['policy']
+        solver_params.gamma = self.lr_config['gamma']
+        solver_params.stepsize = self.lr_config['step_size']
+        solver_params.momentum = self.lr_config['momentum']
+        solver_params.weight_decay = self.lr_config['weight_decay']
+        solver_params.snapshot = 0 # disable standard Caffe snapshots
+        solver_prototxt = save_prototxt(solver_params)
+        return caffe.SGDSolver(solver_prototxt)
 
     def snapshot(self):
         """

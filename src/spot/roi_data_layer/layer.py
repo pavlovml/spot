@@ -15,7 +15,6 @@ from spot.fast_rcnn.config import cfg
 from spot.roi_data_layer.minibatch import get_minibatch
 import numpy as np
 import yaml
-from multiprocessing import Process, Queue
 
 class RoIDataLayer(caffe.Layer):
     """Fast R-CNN data layer used for training."""

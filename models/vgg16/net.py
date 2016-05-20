@@ -1,8 +1,6 @@
 from caffe import layers as L, params as P
 import caffe
 
-TEST = True
-
 def max_pool(bottom, kernel_size=2, stride=2):
     return L.Pooling(bottom, pool=P.Pooling.MAX, kernel_size=kernel_size, stride=stride)
 
@@ -14,17 +12,15 @@ def conv_relu(
     relu = L.ReLU(conv, in_place=True)
     return conv, relu
 
-def fc_relu(
-        bottom, num_output=4096,
-        param=[dict(lr_mult=0.0, decay_mult=0.0), dict(lr_mult=0.0, decay_mult=0.0)]):
+def fc_relu(bottom, param, num_output=4096):
     fc = L.InnerProduct(bottom, param=param, num_output=num_output)
     relu = L.ReLU(fc, in_place=True)
     return fc, relu
 
-def create_net(phase, num_classes):
+def create_net(train, num_classes):
     n = caffe.NetSpec()
 
-    if phase == 'TRAIN':
+    if train:
         param = [dict(lr_mult=1.0), dict(lr_mult=2.0)]
         n.data, n.im_info, n.gt_boxes = L.Python(
                 name='input-data', ntop=3,
@@ -89,7 +85,7 @@ def create_net(phase, num_classes):
             n.rpn_cls_score,
             shape=dict(dim=[0, 2, -1, 0]))
 
-    if phase == 'TRAIN':
+    if train:
         n.rpn_labels, n.rpn_bbox_targets, n.rpn_bbox_inside_weights, n.rpn_bbox_outside_weights = L.Python(
                 n.rpn_cls_score, n.gt_boxes, n.im_info, n.data,
                 name='rpn-data', ntop=4,
@@ -118,7 +114,7 @@ def create_net(phase, num_classes):
             n.rpn_cls_prob,
             shape=dict(dim=[0, 24, -1, 0]))
 
-    if phase == 'TRAIN':
+    if train:
         n.rpn_rois = L.Python(
                 n.rpn_cls_prob_reshape, n.rpn_bbox_pred, n.im_info,
                 name='proposal',
@@ -165,7 +161,7 @@ def create_net(phase, num_classes):
             bias_filler=dict(type='constant', value=0.0),
             param=param)
 
-    if phase == 'TRAIN':
+    if train:
         n.loss_cls = L.SoftmaxWithLoss(
                 n.cls_score, n.labels,
                 name='loss_cls',
@@ -181,7 +177,7 @@ def create_net(phase, num_classes):
     proto = n.to_proto()
     proto.name = 'VGG_ILSVRC_16_layers'
 
-    if phase == 'TEST':
+    if not train:
         del proto.layer[0]
         proto.input.append('data')
         proto.input_shape.add().dim.extend([1, 3, 224, 224])
@@ -190,20 +186,8 @@ def create_net(phase, num_classes):
 
     return proto
 
-# print str(create_net('TEST', 29))
+def train_net(num_classes):
+    return create_net(train=True, num_classes=num_classes)
 
-from caffe.proto import caffe_pb2
-net2 = caffe_pb2.NetParameter()
-from google.protobuf.text_format import Merge
-Merge((open("models/VGG16/test.prototxt",'r').read()), net2)
-# print str(net2)
-
-print str(create_net('TEST', 29)) == str(net2)
-
-net2 = caffe_pb2.NetParameter()
-from google.protobuf.text_format import Merge
-Merge((open("models/VGG16/train.prototxt",'r').read()), net2)
-# print str(net2)
-
-# print str(create_net('TRAIN', 29))
-print str(create_net('TRAIN', 29)) == str(net2)
+def test_net(num_classes):
+    return create_net(train=False, num_classes=num_classes)

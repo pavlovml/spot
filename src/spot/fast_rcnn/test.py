@@ -137,13 +137,8 @@ def im_detect(net, im, boxes=None):
     # unscale back to raw image space
     boxes = rois[:, 1:5] / im_scales[0]
 
-    if cfg.TEST.SVM:
-        # use the raw scores before softmax under the assumption they
-        # were trained as linear SVMs
-        scores = net.blobs['cls_score'].data
-    else:
-        # use softmax estimated probabilities
-        scores = blobs_out['cls_prob']
+    # use softmax estimated probabilities
+    scores = blobs_out['cls_prob']
 
     # Apply bounding-box regression deltas
     box_deltas = blobs_out['bbox_pred']
