@@ -1,4 +1,4 @@
-### `rpn` module overview
+### `layers` module overview
 
 ##### `generate_anchors.py`
 

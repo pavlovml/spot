@@ -5,13 +5,12 @@
 # Written by Ross Girshick and Sean Bell
 # --------------------------------------------------------
 
-import caffe
-import yaml
+from spot.config import cfg
+from spot.utils.bbox_transform import bbox_transform
+from spot.utils.cython_bbox import bbox_overlaps
+import caffe, yaml
 import numpy as np
 import numpy.random as npr
-from spot.fast_rcnn.config import cfg
-from spot.fast_rcnn.bbox_transform import bbox_transform
-from spot.utils.cython_bbox import bbox_overlaps
 
 DEBUG = False
 

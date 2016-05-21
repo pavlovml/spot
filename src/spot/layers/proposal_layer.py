@@ -5,13 +5,12 @@
 # Written by Ross Girshick and Sean Bell
 # --------------------------------------------------------
 
-import caffe
-import numpy as np
-import yaml
-from spot.fast_rcnn.config import cfg
-from generate_anchors import generate_anchors
-from spot.fast_rcnn.bbox_transform import bbox_transform_inv, clip_boxes
+from spot.config import cfg
 from spot.nms import nms
+from spot.utils.generate_anchors import generate_anchors
+from spot.utils.bbox_transform import bbox_transform_inv, clip_boxes
+import caffe, yaml
+import numpy as np
 
 DEBUG = False
 

@@ -5,15 +5,13 @@
 # Written by Ross Girshick and Sean Bell
 # --------------------------------------------------------
 
-import os
-import caffe
-import yaml
-from spot.fast_rcnn.config import cfg
+from spot.config import cfg
+from spot.utils.bbox_transform import bbox_transform
+from spot.utils.cython_bbox import bbox_overlaps
+from spot.utils.generate_anchors import generate_anchors
+import caffe, os, yaml
 import numpy as np
 import numpy.random as npr
-from generate_anchors import generate_anchors
-from spot.utils.cython_bbox import bbox_overlaps
-from spot.fast_rcnn.bbox_transform import bbox_transform
 
 DEBUG = False
 

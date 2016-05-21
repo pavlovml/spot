@@ -149,10 +149,9 @@ setup(
     packages=[
         'spot',
         'spot.cli',
-        'spot.fast_rcnn',
+        'spot.net_factories',
         'spot.nms',
-        'spot.roi_data_layer',
-        'spot.rpn',
+        'spot.layers',
         'spot.utils'
     ],
 

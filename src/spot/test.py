@@ -7,17 +7,13 @@
 
 """Test a Fast R-CNN network on an imdb (image database)."""
 
-from spot.fast_rcnn.config import cfg
-from spot.fast_rcnn.bbox_transform import clip_boxes, bbox_transform_inv
-import argparse
-from spot.utils.timer import Timer
-import numpy as np
-import cv2
-import caffe
+from spot.config import cfg
 from spot.nms import nms
-import cPickle
+from spot.utils.bbox_transform import clip_boxes, bbox_transform_inv
 from spot.utils.blob import im_list_to_blob
-import os
+from spot.utils.timer import Timer
+import cv2
+import numpy as np
 
 def _get_image_blob(im):
     """Converts an image into a network input.

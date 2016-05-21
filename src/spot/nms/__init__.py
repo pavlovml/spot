@@ -5,7 +5,7 @@
 # Written by Ross Girshick
 # --------------------------------------------------------
 
-from spot.fast_rcnn.config import cfg
+from spot.config import cfg
 from .gpu_nms import gpu_nms
 from .cpu_nms import cpu_nms
 

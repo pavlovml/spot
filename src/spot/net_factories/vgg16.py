@@ -17,14 +17,14 @@ def fc_relu(bottom, param, num_output=4096):
     relu = L.ReLU(fc, in_place=True)
     return fc, relu
 
-def create_net(train, num_classes):
+def create_net(phase, num_classes):
     n = caffe.NetSpec()
 
-    if train:
+    if phase == caffe.TRAIN:
         param = [dict(lr_mult=1.0), dict(lr_mult=2.0)]
         n.data, n.im_info, n.gt_boxes = L.Python(
                 name='input-data', ntop=3,
-                module='spot.roi_data_layer.layer',
+                module='spot.layers',
                 layer='RoIDataLayer',
                 param_str="'num_classes': {:d}".format(num_classes))
     else:
@@ -85,11 +85,11 @@ def create_net(train, num_classes):
             n.rpn_cls_score,
             shape=dict(dim=[0, 2, -1, 0]))
 
-    if train:
+    if phase == caffe.TRAIN:
         n.rpn_labels, n.rpn_bbox_targets, n.rpn_bbox_inside_weights, n.rpn_bbox_outside_weights = L.Python(
                 n.rpn_cls_score, n.gt_boxes, n.im_info, n.data,
                 name='rpn-data', ntop=4,
-                module='spot.rpn.anchor_target_layer',
+                module='spot.layers',
                 layer='AnchorTargetLayer',
                 param_str="'feat_stride': 16 \n'scales': !!python/tuple [4, 8, 16, 32]")
 
@@ -114,25 +114,25 @@ def create_net(train, num_classes):
             n.rpn_cls_prob,
             shape=dict(dim=[0, 24, -1, 0]))
 
-    if train:
+    if phase == caffe.TRAIN:
         n.rpn_rois = L.Python(
                 n.rpn_cls_prob_reshape, n.rpn_bbox_pred, n.im_info,
                 name='proposal',
-                module='spot.rpn.proposal_layer',
+                module='spot.layers',
                 layer='ProposalLayer',
                 param_str="'feat_stride': 16 \n'scales': !!python/tuple [4, 8, 16, 32]")
 
         n.rois, n.labels, n.bbox_targets, n.bbox_inside_weights, n.bbox_outside_weights = L.Python(
                 n.rpn_rois, n.gt_boxes,
                 name='roi-data', ntop=5,
-                module='spot.rpn.proposal_target_layer',
+                module='spot.layers',
                 layer='ProposalTargetLayer',
                 param_str="'num_classes': {:d}".format(num_classes))
     else:
         n.rois = L.Python(
                 n.rpn_cls_prob_reshape, n.rpn_bbox_pred, n.im_info,
                 name='proposal',
-                module='spot.rpn.proposal_layer',
+                module='spot.layers',
                 layer='ProposalLayer',
                 param_str="'feat_stride': 16 \n'scales': !!python/tuple [4, 8, 16, 32]")
 
@@ -161,7 +161,7 @@ def create_net(train, num_classes):
             bias_filler=dict(type='constant', value=0.0),
             param=param)
 
-    if train:
+    if phase == caffe.TRAIN:
         n.loss_cls = L.SoftmaxWithLoss(
                 n.cls_score, n.labels,
                 name='loss_cls',
@@ -177,7 +177,7 @@ def create_net(train, num_classes):
     proto = n.to_proto()
     proto.name = 'VGG_ILSVRC_16_layers'
 
-    if not train:
+    if phase == caffe.TEST:
         del proto.layer[0]
         proto.input.append('data')
         proto.input_shape.add().dim.extend([1, 3, 224, 224])
@@ -185,9 +185,3 @@ def create_net(train, num_classes):
         proto.input_shape.add().dim.extend([1, 3])
 
     return proto
-
-def train_net(num_classes):
-    return create_net(train=True, num_classes=num_classes)
-
-def test_net(num_classes):
-    return create_net(train=False, num_classes=num_classes)

@@ -1,4 +1,4 @@
-from . import train, test, demo
+from . import train, test, demo, server
 from argparse import ArgumentParser
 import sys
 
@@ -7,6 +7,7 @@ subparsers = parser.add_subparsers()
 train.add_subparser(subparsers)
 test.add_subparser(subparsers)
 demo.add_subparser(subparsers)
+server.add_subparser(subparsers)
 
 def run():
     if len(sys.argv) == 1:

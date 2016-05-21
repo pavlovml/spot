@@ -5,6 +5,10 @@
 # Written by Ross Girshick
 # --------------------------------------------------------
 
+from easydict import EasyDict as edict
+import caffe
+import numpy as np
+
 """
 Fast R-CNN config system.
 
@@ -16,9 +20,6 @@ Most tools in $ROOT/tools take a --cfg option to specify an override file.
     - See tools/{train,test}_net.py for example code that uses cfg_from_file()
     - See experiments/cfgs/*.yml for example YAML config override files
 """
-
-import numpy as np
-from easydict import EasyDict as edict
 
 __C = edict()
 # Consumers can get config by:
@@ -143,3 +144,14 @@ __C.PIXEL_MEANS = np.array([[[102.9801, 115.9465, 122.7717]]])
 
 # Default GPU device id
 __C.GPU_ID = 0
+
+def setup_caffe(gpu=0, seed=None):
+    """Initializes Caffe's python bindings."""
+    __C.GPU_ID = gpu
+
+    if seed:
+        np.random.seed(seed)
+        caffe.set_random_seed(seed)
+
+    caffe.set_mode_gpu()
+    caffe.set_device(gpu)

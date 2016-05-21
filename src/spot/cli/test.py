@@ -8,8 +8,8 @@
 # --------------------------------------------------------
 
 from spot.dataset import FasterRCNNDataset
-from spot.fast_rcnn.config import cfg
-from spot.fast_rcnn.test import test_net
+from spot.config import cfg
+from spot.test import test_net
 import caffe, sys
 import numpy as np
 

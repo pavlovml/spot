@@ -13,8 +13,8 @@ Demo script showing detections in sample images.
 See README.md for installation instructions before running.
 """
 
-from spot.fast_rcnn.config import cfg
-from spot.fast_rcnn.test import im_detect
+from spot.config import cfg
+from spot.test import im_detect
 from spot.nms import nms
 from spot.utils.timer import Timer
 import caffe, os, sys, cv2
