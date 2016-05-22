@@ -13,6 +13,7 @@ build:
 
 run: build
 	docker run \
+		-p 80:80 \
 		-v nvidia_driver_361.42:/usr/local/nvidia \
 		-v /home/ubuntu/data:/spot/data \
 		-v /home/ubuntu/output:/spot/output \

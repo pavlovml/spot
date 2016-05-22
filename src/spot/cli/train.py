@@ -87,7 +87,7 @@ class Solver(object):
 
         filename = os.path.join(
                 self.output_dir,
-                self.solver.iter + '.caffemodel')
+                '{:d}.caffemodel'.format(self.solver.iter))
 
         net.save(str(filename))
         print 'Wrote snapshot to: {:s}'.format(filename)
@@ -103,19 +103,23 @@ class Solver(object):
         last_snapshot_iter = -1
         timer = Timer()
         model_paths = []
-        while self.solver.iter < iterations:
-            # Make one SGD update
-            timer.tic()
-            self.solver.step(1)
-            timer.toc()
-            if self.solver.iter % 10 == 0:
-                print 'speed: {:.3f}s / iter'.format(timer.average_time)
 
-            if self.solver.iter % self.snapshot_every == 0:
-                last_snapshot_iter = self.solver.iter
+        try:
+            while self.solver.iter < iterations:
+                # Make one SGD update
+                timer.tic()
+                self.solver.step(1)
+                timer.toc()
+                if self.solver.iter % 10 == 0:
+                    print 'speed: {:.3f}s / iter'.format(timer.average_time)
+
+                if self.solver.iter % self.snapshot_every == 0:
+                    last_snapshot_iter = self.solver.iter
+                    model_paths.append(self.snapshot())
+
+            if last_snapshot_iter != self.solver.iter:
                 model_paths.append(self.snapshot())
-
-        if last_snapshot_iter != self.solver.iter:
+        except KeyboardInterrupt:
             model_paths.append(self.snapshot())
 
         return model_paths
@@ -265,4 +269,4 @@ def run(args):
     model_paths = solver.train_model(args.iterations)
 
     print 'done solving'
-    oys.exit(0)
+    sys.exit(0)
